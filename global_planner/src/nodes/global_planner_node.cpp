@@ -61,10 +61,6 @@ GlobalPlannerNode::GlobalPlannerNode()
   current_goal_.pose.orientation = avoidance::createQuaternionMsgFromYaw(start_yaw_);
   last_goal_ = current_goal_;
 
-<<<<<<< Updated upstream
-  speed_ = global_planner_.default_speed_;
-  start_time_ = ros::Time::now();
-=======
   speed_ = 1.0;
 
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -75,7 +71,6 @@ GlobalPlannerNode::GlobalPlannerNode()
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   start_time_ = rclcpp::Clock().now();
->>>>>>> Stashed changes
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() {}
@@ -83,18 +78,6 @@ GlobalPlannerNode::~GlobalPlannerNode() {}
 void GlobalPlannerNode::readParams() {
   std::vector<std::string> camera_topics;
 
-<<<<<<< Updated upstream
-  nh_.param<double>("start_pos_x", start_pos_.x, 0.5);
-  nh_.param<double>("start_pos_y", start_pos_.y, 0.5);
-  nh_.param<double>("start_pos_z", start_pos_.z, 3.5);
-  nh_.param<std::string>("frame_id", frame_id_, "/local_origin");
-  nh_.getParam("pointcloud_topics", camera_topics);
-  if (!nh_.hasParam("camera_frame_id")) {
-    nh_.setParam("camera_frame_id", "/camera_link");
-  } else {
-    nh_.getParam("camera_frame_id", camera_frame_id_);
-  }
-=======
   this->declare_parameter("frame_id", "/base_frame");
   
   this->get_parameter("frame_id", frame_id_);
@@ -104,7 +87,6 @@ void GlobalPlannerNode::readParams() {
 
   this->get_parameter("pointcloud_topics", camera_topics);
   camera_topics.push_back("/camera/points");
->>>>>>> Stashed changes
 
   initializeCameraSubscribers(camera_topics);
   global_planner_.goal_pos_ = GoalCell(start_pos_.x, start_pos_.y, start_pos_.z);
@@ -175,53 +157,6 @@ void GlobalPlannerNode::setIntermediateGoal() {
   }
 }
 
-<<<<<<< Updated upstream
-void GlobalPlannerNode::dynamicReconfigureCallback(global_planner::GlobalPlannerNodeConfig& config, uint32_t level) {
-  // global_planner_
-  global_planner_.min_altitude_ = config.min_altitude_;
-  global_planner_.max_altitude_ = config.max_altitude_;
-  global_planner_.max_cell_risk_ = config.max_cell_risk_;
-  global_planner_.smooth_factor_ = config.smooth_factor_;
-  global_planner_.vert_to_hor_cost_ = config.vert_to_hor_cost_;
-  global_planner_.risk_factor_ = config.risk_factor_;
-  global_planner_.neighbor_risk_flow_ = config.neighbor_risk_flow_;
-  global_planner_.explore_penalty_ = config.explore_penalty_;
-  global_planner_.up_cost_ = config.up_cost_;
-  global_planner_.down_cost_ = config.down_cost_;
-  global_planner_.search_time_ = config.search_time_;
-  global_planner_.min_overestimate_factor_ = config.min_overestimate_factor_;
-  global_planner_.max_overestimate_factor_ = config.max_overestimate_factor_;
-  global_planner_.risk_threshold_risk_based_speedup_ = config.risk_threshold_risk_based_speedup_;
-  global_planner_.default_speed_ = config.default_speed_;
-  global_planner_.max_speed_ = config.max_speed_;
-  global_planner_.max_iterations_ = config.max_iterations_;
-  global_planner_.goal_must_be_free_ = config.goal_must_be_free_;
-  global_planner_.use_current_yaw_ = config.use_current_yaw_;
-  global_planner_.use_risk_heuristics_ = config.use_risk_heuristics_;
-  global_planner_.use_speedup_heuristics_ = config.use_speedup_heuristics_;
-  global_planner_.use_risk_based_speedup_ = config.use_risk_based_speedup_;
-
-  // global_planner_node
-  clicked_goal_alt_ = config.clicked_goal_alt_;
-  clicked_goal_radius_ = config.clicked_goal_radius_;
-  simplify_iterations_ = config.simplify_iterations_;
-  simplify_margin_ = config.simplify_margin_;
-
-  // cell
-  if (level == 2) {
-    CELL_SCALE = config.CELL_SCALE;
-  }
-
-  // node
-  if (level == 4) {
-    SPEEDNODE_RADIUS = config.SPEEDNODE_RADIUS;
-    global_planner_.default_node_type_ = config.default_node_type_;
-  }
-}
-
-void GlobalPlannerNode::velocityCallback(const geometry_msgs::TwistStamped& msg) {
-  global_planner_.curr_vel_ = msg.twist.linear;
-=======
 // void GlobalPlannerNode::dynamicReconfigureCallback(global_planner::GlobalPlannerNodeConfig& config, uint32_t level) {
 //   // global_planner_
 //   global_planner_.min_altitude_ = config.min_altitude_;
@@ -295,7 +230,6 @@ void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::S
   tf2::convert(quat_for_static_tf2, quat_for_static_geomsg);
   tfmsg_static.transform.rotation = quat_for_static_geomsg;
   static_transform_broadcaster_->sendTransform(tfmsg_static);
->>>>>>> Stashed changes
 }
 
 // Sets the current position and checks if the current goal has been reached
@@ -406,21 +340,11 @@ void GlobalPlannerNode::depthCameraCallback(const sensor_msgs::msg::PointCloud2:
 
 void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
   try {
-<<<<<<< Updated upstream
-    // Transform msg from camera frame to world frame
-    ros::Time now = ros::Time::now();
-    listener_.waitForTransform(frame_id_, camera_frame_id_, now, ros::Duration(5.0));
-    tf::StampedTransform transform;
-    listener_.lookupTransform(frame_id_, camera_frame_id_, now, transform);
-    sensor_msgs::PointCloud2 transformed_msg;
-    pcl_ros::transformPointCloud(frame_id_, transform, msg, transformed_msg);
-=======
     geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
     // printf("Got Transformation!! %lf %lf %lf\n", transformStamped.transform.translation.x, transformStamped.transform.translation.y, transformStamped.transform.translation.z);
     sensor_msgs::msg::PointCloud2 transformed_msg;
     tf2::doTransform(pointcloud2_, transformed_msg, transformStamped);
->>>>>>> Stashed changes
     pcl::PointCloud<pcl::PointXYZ> cloud;  // Easier to loop through pcl::PointCloud
     pcl::fromROSMsg(transformed_msg, cloud);
 
@@ -434,19 +358,12 @@ void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg:
         global_planner_.occupied_.insert(occupied_cell);
       }
     }
-<<<<<<< Updated upstream
-    pointcloud_pub_.publish(msg);
-  } catch (tf::TransformException const& ex) {
-    ROS_DEBUG("%s", ex.what());
-    ROS_WARN("Transformation not available (%s to %s)", frame_id_.c_str(), camera_frame_id_.c_str());
-=======
     
     pointcloud_pub_->publish(transformed_msg);
 
     // RCLCPP_INFO(this->get_logger(), "success to transfrom!");
   } catch(tf2::TimeoutException const& ex) {
     RCLCPP_WARN(this->get_logger(), "%s", ex.what());
->>>>>>> Stashed changes
   }
 }
 
@@ -535,27 +452,7 @@ void GlobalPlannerNode::printPointInfo(double x, double y, double z) {
 
 void GlobalPlannerNode::publishSetpoint() {
   // Vector pointing from current position to the current goal
-<<<<<<< Updated upstream
-  tf::Vector3 vec = toTfVector3(subtractPoints(current_goal_.pose.position, last_pos_.pose.position));
-  if (global_planner_.use_speedup_heuristics_) {
-    Cell cur_cell =
-        global_planner::Cell(last_pos_.pose.position.x, last_pos_.pose.position.y, last_pos_.pose.position.z);
-    double cur_risk = std::sqrt(global_planner_.getRisk(cur_cell));
-    if (cur_risk >= global_planner_.risk_threshold_risk_based_speedup_) {  // If current risk is too high(more than
-                                                                           // risk_threshold_risk_based_speedup_), set
-                                                                           // speed as low to stable flight.
-      speed_ = global_planner_.default_speed_;
-    } else {  // If current risk is low, speed up for fast flight.
-      speed_ = global_planner_.default_speed_ +
-               (global_planner_.max_speed_ - global_planner_.default_speed_) * (1 - cur_risk);
-    }
-  } else {  // If risk based speed up is not activated, use default_speed_.
-    speed_ = global_planner_.default_speed_;
-  }
-
-=======
   tf2::Vector3 vec = toTfVector3(subtractPoints(current_goal_.pose.position, last_pos_.pose.position));
->>>>>>> Stashed changes
   // If we are less than 1.0 away, then we should stop at the goal
   double new_len = vec.length() < 1.0 ? vec.length() : speed_;
   vec.normalize();
@@ -581,12 +478,8 @@ void GlobalPlannerNode::publishSetpoint() {
   mavros_obstacle_free_path_pub_->publish(obst_free_path);
 }
 
-<<<<<<< Updated upstream
-bool GlobalPlannerNode::isCloseToGoal() { return distance(current_goal_, last_pos_) < speed_; }
-=======
 bool GlobalPlannerNode::isCloseToGoal() { 
   return distance(current_goal_, last_pos_) < 1.5;
 }
->>>>>>> Stashed changes
 
 }  // namespace global_planner
