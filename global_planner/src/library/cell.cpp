@@ -67,7 +67,10 @@ std::vector<Cell> Cell::getFlowNeighbors(int radius) const {
   std::vector<Cell> cells;
   auto ceilDistance = [](int radius, int x, int y) {
     auto sqr = [](int i) { return double(i * i); };
-    return static_cast<int>(std::ceil(std::sqrt(sqr(radius) - sqr(x) - sqr(y))));
+    auto sq_value = sqr(radius) - sqr(x) - sqr(y);
+    if (sq_value > 0)
+      return static_cast<int>(std::ceil(std::sqrt(sq_value)));
+    return 0;
   };
   for (int x = -radius; x <= radius; x++) {
     int y_radius = ceilDistance(radius, x, 0);

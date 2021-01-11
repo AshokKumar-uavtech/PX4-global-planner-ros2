@@ -15,7 +15,7 @@ def generate_launch_description():
 
     tf2_static_pub_node = Node(
                 package='tf2_ros',
-                node_executable='static_transform_publisher',
+                executable='static_transform_publisher',
                 name='tf_depth_camera',
                 arguments=['0', '0', '0', '-1.57', '0',
                            '-1.57', 'local_origin_odom', 'camera_frame'],
@@ -23,7 +23,7 @@ def generate_launch_description():
 
     rviz2_node = Node(
                 package='rviz2',
-                node_executable='rviz2',
+                executable='rviz2',
                 name='rviz2',
                 arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
 
@@ -34,7 +34,7 @@ def generate_launch_description():
                  output='screen',
                  parameters=[gp_params])
 
-    octomap_params = {'resolution': 0.15,
+    octomap_params = {'resolution': 0.10,
               'frame_id': 'base_frame',
               'base_frame_id': 'base_footprint',
               'height_map': True,
@@ -66,6 +66,6 @@ def generate_launch_description():
     
     octomap_node = Node(package='octomap_server2',
                  executable='octomap_server',
-                 output='screen',
+                 output='log',
                  parameters=[octomap_params])
     return LaunchDescription([tf2_static_pub_node, octomap_node, gp_node, rviz2_node])

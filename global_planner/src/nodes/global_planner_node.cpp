@@ -33,8 +33,6 @@ GlobalPlannerNode::GlobalPlannerNode()
     "/clicked_point", qos, std::bind(&GlobalPlannerNode::clickedPointCallback, this, _1));
   move_base_simple_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
     "/goal_pose", qos, std::bind(&GlobalPlannerNode::moveBaseSimpleCallback, this, _1));
-  // nh_.subscribe("/move_base_simple/goal", 1, &GlobalPlannerNode::moveBaseSimpleCallback, this);
-  // fcu_input_sub_ = nh_.subscribe("/mavros/trajectory/desired", 1, &GlobalPlannerNode::fcuInputGoalCallback, this);
 
   // Publishers
   global_temp_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/global_temp_path", 10);
@@ -82,7 +80,7 @@ void GlobalPlannerNode::readParams() {
   this->get_parameter("frame_id", frame_id_);
   this->get_parameter_or("start_pos_x", start_pos_.x, 0.5);
   this->get_parameter_or("start_pos_y", start_pos_.y, 0.5);
-  this->get_parameter_or("start_pos_z", start_pos_.z, 3.5);
+  this->get_parameter_or("start_pos_z", start_pos_.z, 3.0);
 
   this->get_parameter("pointcloud_topics", camera_topics);
   camera_topics.push_back("/camera/points");
@@ -120,7 +118,7 @@ void GlobalPlannerNode::popNextGoal() {
     setNewGoal(new_goal);
   } else if (global_planner_.goal_is_blocked_) {
     // Goal is blocked but there is no other goal in waypoints_, just stop
-    RCLCPP_INFO(this->get_logger(), "  STOP  ");
+    // RCLCPP_INFO(this->get_logger(), "  STOP  ");
     global_planner_.stop();
   }
 }
@@ -142,7 +140,7 @@ void GlobalPlannerNode::planPath() {
     // The path is not good enough, set an intermediate goal on the path
     setIntermediateGoal();
   }
-  printf("Total time: %2.2f ms \n", (std::clock() - start_time) / (double)(CLOCKS_PER_SEC / 1000));
+  // printf("Total time: %2.2f ms \n", (std::clock() - start_time) / (double)(CLOCKS_PER_SEC / 1000));
 }
 
 // Sets a temporary goal on the path to the current goal
@@ -156,59 +154,17 @@ void GlobalPlannerNode::setIntermediateGoal() {
   }
 }
 
-// void GlobalPlannerNode::dynamicReconfigureCallback(global_planner::GlobalPlannerNodeConfig& config, uint32_t level) {
-//   // global_planner_
-//   global_planner_.min_altitude_ = config.min_altitude_;
-//   global_planner_.max_altitude_ = config.max_altitude_;
-//   global_planner_.max_cell_risk_ = config.max_cell_risk_;
-//   global_planner_.smooth_factor_ = config.smooth_factor_;
-//   global_planner_.vert_to_hor_cost_ = config.vert_to_hor_cost_;
-//   global_planner_.risk_factor_ = config.risk_factor_;
-//   global_planner_.neighbor_risk_flow_ = config.neighbor_risk_flow_;
-//   global_planner_.expore_penalty_ = config.expore_penalty_;
-//   global_planner_.up_cost_ = config.up_cost_;
-//   global_planner_.down_cost_ = config.down_cost_;
-//   global_planner_.search_time_ = config.search_time_;
-//   global_planner_.min_overestimate_factor_ = config.min_overestimate_factor_;
-//   global_planner_.max_overestimate_factor_ = config.max_overestimate_factor_;
-//   global_planner_.max_iterations_ = config.max_iterations_;
-//   global_planner_.goal_must_be_free_ = config.goal_must_be_free_;
-//   global_planner_.use_current_yaw_ = config.use_current_yaw_;
-//   global_planner_.use_risk_heuristics_ = config.use_risk_heuristics_;
-//   global_planner_.use_speedup_heuristics_ = config.use_speedup_heuristics_;
-
-//   // global_planner_node
-//   clicked_goal_alt_ = config.clicked_goal_alt_;
-//   clicked_goal_radius_ = config.clicked_goal_radius_;
-//   simplify_iterations_ = config.simplify_iterations_;
-//   simplify_margin_ = config.simplify_margin_;
-
-//   // cell
-//   if (level == 2) {
-//     CELL_SCALE = config.CELL_SCALE;
-//   }
-
-//   // node
-//   if (level == 4) {
-//     SPEEDNODE_RADIUS = config.SPEEDNODE_RADIUS;
-//     global_planner_.default_node_type_ = config.default_node_type_;
-//   }
-// }
-
 void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg) {
   tf2::Quaternion q( msg->q[0], msg->q[1], msg->q[2], msg->q[3] );
   double yaw, pitch, roll;
   tf2::getEulerYPR(q, yaw, pitch, roll);
   tf2::Quaternion q_NED;
-  // q_NED.setEuler(-roll-3.141592, -pitch, yaw);
-  q_NED.setRPY(yaw, -pitch, -roll-3.141592);
-  geometry_msgs::msg::Quaternion quat_geomsg;
-  tf2::convert(q_NED, quat_geomsg);
-  // printf("Roll %lf, Pitch %lf, Yaw %lf\n", roll*180/3.141592, pitch*180/3.141592, yaw*180/3.141592);
   // roll = yaw
   // pitch = -pitch
   // yaw = -(180+roll)
-  // printf("Roll %lf, Pitch %lf, Yaw %lf\n\n", yaw*180/3.141592, -pitch*180/3.141592, -(180+roll*180/3.141592));
+  q_NED.setRPY(yaw, -pitch, -roll-3.141592);
+  geometry_msgs::msg::Quaternion quat_geomsg;
+  tf2::convert(q_NED, quat_geomsg);
 
   geometry_msgs::msg::TransformStamped tfmsg;
   tfmsg.header.stamp = rclcpp::Clock().now();
@@ -249,7 +205,7 @@ void GlobalPlannerNode::positionCallback(const px4_msgs::msg::VehicleLocalPositi
   // Check if a new goal is needed
   if (num_pos_msg_++ % 100 == 0) {
     // Keep track of and publish the actual travel trajectory
-    RCLCPP_INFO(this->get_logger(), "Travelled path extended");
+    // RCLCPP_INFO(this->get_logger(), "Travelled path extended");
     last_pos_.header.frame_id = frame_id_;
     actual_path_.poses.push_back(last_pos_);
     actual_path_pub_->publish(actual_path_);
@@ -301,8 +257,6 @@ void GlobalPlannerNode::moveBaseSimpleCallback(const geometry_msgs::msg::PoseSta
 
 // // Check if the current path is blocked
 void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "octomapFullCallback called!");
-  
   std::lock_guard<std::mutex> lock(mutex_);
 
   rclcpp::Time current = rclcpp::Clock().now();
@@ -328,7 +282,6 @@ void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg:
   try {
     geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
-    // printf("Got Transformation!! %lf %lf %lf\n", transformStamped.transform.translation.x, transformStamped.transform.translation.y, transformStamped.transform.translation.z);
     sensor_msgs::msg::PointCloud2 transformed_msg;
     tf2::doTransform(pointcloud2_, transformed_msg, transformStamped);
     pcl::PointCloud<pcl::PointXYZ> cloud;  // Easier to loop through pcl::PointCloud
@@ -336,18 +289,14 @@ void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg:
 
     // Store the obstacle points
     for (const auto& p : cloud) {
-      // printf("p.x : %lf, p.y : %lf, p.z : %lf\n", p.x, p.y, p.z);
       if (!std::isnan(p.x) && p.z >= 1.0) {
         // TODO: Not all points end up here
-        // printf("p.x : %lf, p.y : %lf, p.z : %lf\n", p.x, p.y, p.z);
         Cell occupied_cell(p.x, p.y, p.z);
         global_planner_.occupied_.insert(occupied_cell);
       }
     }
     
     pointcloud_pub_->publish(transformed_msg);
-
-    // RCLCPP_INFO(this->get_logger(), "success to transfrom!");
   } catch(tf2::TimeoutException const& ex) {
     RCLCPP_WARN(this->get_logger(), "%s", ex.what());
   }
@@ -357,7 +306,7 @@ void GlobalPlannerNode::setCurrentPath(const std::vector<geometry_msgs::msg::Pos
   path_.clear();
 
   if (poses.size() < 2) {
-    RCLCPP_INFO(this->get_logger(), "  Received empty path\n");
+    // RCLCPP_INFO(this->get_logger(), "  Received empty path\n");
     return;
   }
   last_goal_ = poses[0];
