@@ -1,8 +1,8 @@
 #ifndef RVIZ_WORLD_H
 #define RVIZ_WORLD_H
 
-#include <geometry_msgs/PoseStamped.h>
-#include <ros/ros.h>
+#include <chrono>
+
 #include <Eigen/Core>
 #include <fstream>
 #include <iostream>
@@ -10,12 +10,23 @@
 #include <vector>
 #include "yaml-cpp/yaml.h"
 
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
+#include "rclcpp/rclcpp.hpp"
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+// #include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/create_timer_ros.h>
+#include <tf2_ros/buffer.h>
+#include <tf2/convert.h>
 
 #include <sys/stat.h>
 
 namespace avoidance {
+
+using std::placeholders::_1;
+using namespace std::chrono_literals;
 
 // data types
 struct world_object {
@@ -33,51 +44,54 @@ void operator>>(const YAML::Node& node, Eigen::Vector3f& v);
 void operator>>(const YAML::Node& node, Eigen::Vector4f& v);
 void operator>>(const YAML::Node& node, world_object& item);
 
-class WorldVisualizer {
- private:
+class WorldVisualizer : public rclcpp::Node
+{
+private:
   /**
-  * @brief      helper function to resolve gazebo model path
-  **/
-  int resolveUri(std::string& uri);
+   * @brief      helper function to resolve gazebo model path
+   **/
+  int resolveUri(std::string& uri) const;
 
-  ros::NodeHandle nh_;
+  rclcpp::TimerBase::SharedPtr loop_timer_;
+  rclcpp::TimerBase::SharedPtr visualize_drone_timer_;
 
-  ros::Timer loop_timer_;
-
-  ros::Subscriber pose_sub_;
-  ros::Publisher world_pub_;
-  ros::Publisher drone_pub_;
+  // rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr pose_sub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr world_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr drone_pub_;
 
   std::string world_path_;
-  std::string nodelet_ns_;
 
-  void loopCallback(const ros::TimerEvent& event);
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;  
+  std::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster_;
 
- public:
-  WorldVisualizer(const ros::NodeHandle& nh, const std::string& nodelet_ns);
+  void loopCallback();
+
+  void tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf);
+
+public:
+  /**
+   * @brief     WorldVisualizer Node Class
+   */
+  WorldVisualizer();
+  ~WorldVisualizer() = default;
 
   /**
-  * @brief      initializes all publishers used for local planner visualization
-  * @param      nh, nodehandle to initialize publishers
-  **/
-  void initializePublishers(ros::NodeHandle& nh);
+   * @brief      callback for subscribing mav pose topic
+   **/
+  // void positionCallback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) const;
 
   /**
-  * @brief      callback for subscribing mav pose topic
-  **/
-  void positionCallback(const geometry_msgs::PoseStamped& msg);
-
-  /**
-  * @brief      parse the yaml file and publish world marker
-  * @param[in]  world_path, path of the yaml file describing the world
-  **/
+   * @brief      parse the yaml file and publish world marker
+   * @param[in]  world_path, path of the yaml file describing the world
+   **/
   int visualizeRVIZWorld(const std::string& world_path);
 
   /**
-  * @brief      visualize the drone mesh at the current drone position
-  * @param[in]  pose, current drone pose
-  **/
-  int visualizeDrone(const geometry_msgs::PoseStamped& pose);
+   * @brief      visualize the drone mesh at the current drone position
+   * @param[in]  pose, current drone pose
+   **/
+  void visualizeDrone();
 };
 }
 

@@ -71,7 +71,7 @@ bool pointInsideYawFOV(const FOV& fov, const PolarPoint& p_pol) {
 bool isInWhichFOV(const std::vector<FOV>& fov_vec, const PolarPoint& p_pol, int& idx) {
   bool retval = false;
   idx = -1;
-  for (int i = 0; i < fov_vec.size(); ++i) {
+  for (size_t i = 0; i < fov_vec.size(); ++i) {
     if (pointInsideYawFOV(fov_vec[i], p_pol)) {
       if (retval) {  // if it's been found before, return false!
         idx = -1;
@@ -253,6 +253,14 @@ float getPitchFromQuaternion(const Eigen::Quaternionf q) {
   return pitch * RAD_TO_DEG;
 }
 
+geometry_msgs::msg::Quaternion createQuaternionMsgFromYaw(double yaw) {
+  tf2::Quaternion quat_tf;
+  quat_tf.setRPY( 0, 0, yaw );
+  geometry_msgs::msg::Quaternion quat_msg;
+  quat_msg = tf2::toMsg(quat_tf);
+  return quat_msg;
+}
+
 float wrapAngleToPlusMinusPI(float angle) { return angle - 2.0f * M_PI_F * std::floor(angle / (2.0f * M_PI_F) + 0.5f); }
 
 float wrapAngleToPlusMinus180(float angle) { return angle - 360.f * std::floor(angle / 360.f + 0.5f); }
@@ -278,63 +286,50 @@ double getAngularVelocity(float desired_yaw, float curr_yaw) {
   return 0.5 * static_cast<double>(vel);
 }
 
-void transformToTrajectory(mavros_msgs::Trajectory& obst_avoid, geometry_msgs::PoseStamped pose,
-                           geometry_msgs::Twist vel) {
-  obst_avoid.header.stamp = ros::Time::now();
+void transformToTrajectory(px4_msgs::msg::VehicleTrajectoryWaypoint& obst_avoid, geometry_msgs::msg::PoseStamped pose,
+                           geometry_msgs::msg::Twist vel) {
+
+  obst_avoid.timestamp =  std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()).time_since_epoch().count();
+
+  obst_avoid.waypoints[0].position[0] = pose.pose.position.x;
+  obst_avoid.waypoints[0].position[1] = pose.pose.position.y;
+  obst_avoid.waypoints[0].position[2] = pose.pose.position.z;
+  obst_avoid.waypoints[0].velocity[0] = vel.linear.x;
+  obst_avoid.waypoints[0].velocity[1] = vel.linear.y;
+  obst_avoid.waypoints[0].velocity[2] = vel.linear.z;
+  obst_avoid.waypoints[0].acceleration[0] = NAN;
+  obst_avoid.waypoints[0].acceleration[1] = NAN;
+  obst_avoid.waypoints[0].acceleration[2] = NAN;
+  obst_avoid.waypoints[0].yaw = tf2::getYaw(pose.pose.orientation);
+  obst_avoid.waypoints[0].yaw_speed = -vel.angular.z;
+
   obst_avoid.type = 0;  // MAV_TRAJECTORY_REPRESENTATION::WAYPOINTS
-  obst_avoid.point_1.position.x = pose.pose.position.x;
-  obst_avoid.point_1.position.y = pose.pose.position.y;
-  obst_avoid.point_1.position.z = pose.pose.position.z;
-  obst_avoid.point_1.velocity.x = vel.linear.x;
-  obst_avoid.point_1.velocity.y = vel.linear.y;
-  obst_avoid.point_1.velocity.z = vel.linear.z;
-  obst_avoid.point_1.acceleration_or_force.x = NAN;
-  obst_avoid.point_1.acceleration_or_force.y = NAN;
-  obst_avoid.point_1.acceleration_or_force.z = NAN;
-  obst_avoid.point_1.yaw = tf::getYaw(pose.pose.orientation);
-  obst_avoid.point_1.yaw_rate = -vel.angular.z;
 
-  fillUnusedTrajectoryPoint(obst_avoid.point_2);
-  fillUnusedTrajectoryPoint(obst_avoid.point_3);
-  fillUnusedTrajectoryPoint(obst_avoid.point_4);
-  fillUnusedTrajectoryPoint(obst_avoid.point_5);
+  obst_avoid.waypoints[0].point_valid = true;
 
-  obst_avoid.time_horizon = {NAN, NAN, NAN, NAN, NAN};
+  fillUnusedTrajectoryPoint(obst_avoid.waypoints[1]);
+  fillUnusedTrajectoryPoint(obst_avoid.waypoints[2]);
+  fillUnusedTrajectoryPoint(obst_avoid.waypoints[3]);
+  fillUnusedTrajectoryPoint(obst_avoid.waypoints[4]);
 
-  obst_avoid.point_valid = {true, false, false, false, false};
+  for (size_t i = 0; i < obst_avoid.waypoints.size(); i++) {
+    obst_avoid.waypoints[i].timestamp = obst_avoid.timestamp;
+    obst_avoid.waypoints[i].point_valid = false;
+  }
 }
 
-void transformToBezier(mavros_msgs::Trajectory& obst_avoid, const std::array<Eigen::Vector4d, 5>& control_points,
-                       double duration) {
-  obst_avoid.header.stamp = ros::Time::now();
-  obst_avoid.type = 1;  // MAV_TRAJECTORY_REPRESENTATION::BEZIER
-  fillControlPoint(obst_avoid.point_1, control_points[0]);
-  fillControlPoint(obst_avoid.point_2, control_points[1]);
-  fillControlPoint(obst_avoid.point_3, control_points[2]);
-  fillControlPoint(obst_avoid.point_4, control_points[3]);
-  fillControlPoint(obst_avoid.point_5, control_points[4]);
-
-  obst_avoid.time_horizon = {NAN, NAN, NAN, NAN, static_cast<float>(duration)};
-  obst_avoid.point_valid = {true, true, true, true, true};
-}
-
-void fillControlPoint(mavros_msgs::PositionTarget& point_out, const Eigen::Vector4d& point_in) {
-  point_out.position = toPoint(toENU(point_in.topRows<3>().cast<float>()));
-  point_out.yaw = yawToENUrad(point_in[3]);
-}
-
-void fillUnusedTrajectoryPoint(mavros_msgs::PositionTarget& point) {
-  point.position.x = NAN;
-  point.position.y = NAN;
-  point.position.z = NAN;
-  point.velocity.x = NAN;
-  point.velocity.y = NAN;
-  point.velocity.z = NAN;
-  point.acceleration_or_force.x = NAN;
-  point.acceleration_or_force.y = NAN;
-  point.acceleration_or_force.z = NAN;
+void fillUnusedTrajectoryPoint(px4_msgs::msg::TrajectoryWaypoint& point) {
+  point.position[0] = NAN;
+  point.position[1] = NAN;
+  point.position[2] = NAN;
+  point.velocity[0] = NAN;
+  point.velocity[1] = NAN;
+  point.velocity[2] = NAN;
+  point.acceleration[0] = NAN;
+  point.acceleration[1] = NAN;
+  point.acceleration[2] = NAN;
   point.yaw = NAN;
-  point.yaw_rate = NAN;
+  point.yaw_speed = NAN;
 }
 
 // This function is a refactor of the original in the pcl library
@@ -435,30 +430,6 @@ void updateFOVFromMaxima(FOV& fov, const pcl::PointCloud<pcl::PointXYZ>& maxima)
     fov.v_fov_deg = v_diff;
     fov.pitch_deg = (v_max + v_min) / 2.0f - 90.0f;
   }
-}
-
-Eigen::Quaterniond quaternionFromRPY(const Eigen::Vector3d& rpy) {
-  return Eigen::Quaterniond(Eigen::AngleAxisd(rpy.z(), Eigen::Vector3d::UnitZ()) *
-                            Eigen::AngleAxisd(rpy.y(), Eigen::Vector3d::UnitY()) *
-                            Eigen::AngleAxisd(rpy.x(), Eigen::Vector3d::UnitX()));
-}
-
-Eigen::Quaterniond orientationToNED(const Eigen::Quaterniond& q) {
-  Eigen::Quaterniond result;
-  Eigen::Quaterniond ned_enu_q = quaternionFromRPY(NED_ENU_RPY);
-  Eigen::Quaterniond aircraft_baselink_q = quaternionFromRPY(AIRCRAFT_BASELINK_RPY);
-  result = q * aircraft_baselink_q;
-  result = ned_enu_q * result;
-  return result;
-}
-
-Eigen::Quaterniond orientationToENU(const Eigen::Quaterniond& q) {
-  Eigen::Quaterniond result;
-  Eigen::Quaterniond ned_enu_q = quaternionFromRPY(NED_ENU_RPY);
-  Eigen::Quaterniond aircraft_baselink_q = quaternionFromRPY(AIRCRAFT_BASELINK_RPY);
-  result = ned_enu_q * q;
-  result = result * aircraft_baselink_q;
-  return result;
 }
 
 }  // namespace avoidance

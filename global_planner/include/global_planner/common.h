@@ -3,6 +3,7 @@
 
 #include <math.h>  // sqrt
 #include <string>
+#include "rclcpp/rclcpp.hpp"
 
 namespace global_planner {
 
@@ -92,7 +93,7 @@ double distance(const P& p1, const P& p2) {
   return norm((p2.x - p1.x), (p2.y - p1.y), (p2.z - p1.z));
 }
 
-inline double clocksToMicroSec(std::clock_t start, std::clock_t end) {
+inline double clocksToMicroSec(clock_t start, clock_t end) {
   return (end - start) / (double)(CLOCKS_PER_SEC / 1000000);
 }
 
