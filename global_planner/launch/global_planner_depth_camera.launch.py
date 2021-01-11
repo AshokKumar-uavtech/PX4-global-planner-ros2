@@ -21,6 +21,12 @@ def generate_launch_description():
                            '-1.57', 'local_origin_odom', 'camera_frame'],
                 output='screen')
 
+    rviz2_node = Node(
+                package='rviz2',
+                node_executable='rviz2',
+                name='rviz2',
+                arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
+
     gp_params = {'frame_id': 'base_frame'}
     
     gp_node = Node(package='global_planner',
@@ -62,4 +68,4 @@ def generate_launch_description():
                  executable='octomap_server',
                  output='screen',
                  parameters=[octomap_params])
-    return LaunchDescription([tf2_static_pub_node, gp_node, octomap_node])
+    return LaunchDescription([tf2_static_pub_node, octomap_node, gp_node, rviz2_node])

@@ -2,3 +2,6 @@
 	path = octomap_msgs
 	url = https://github.com/OctoMap/octomap_msgs
 	branch = ros2
+[submodule "octomap_server2"]
+	path = octomap_server2
+	url = https://github.com/ldg810/octomap_server2
