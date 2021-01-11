@@ -13,6 +13,14 @@ from launch.substitutions import ThisLaunchFileDir
 
 def generate_launch_description():
 
+    tf2_static_pub_node = Node(
+                package='tf2_ros',
+                node_executable='static_transform_publisher',
+                name='tf_depth_camera',
+                arguments=['0', '0', '0', '-1.57', '0',
+                           '-1.57', 'local_origin_odom', 'camera_frame'],
+                output='screen')
+
     gp_params = {'frame_id': 'base_frame'}
     
     gp_node = Node(package='global_planner',
@@ -54,4 +62,4 @@ def generate_launch_description():
                  executable='octomap_server',
                  output='screen',
                  parameters=[octomap_params])
-    return LaunchDescription([gp_node, octomap_node])
+    return LaunchDescription([tf2_static_pub_node, gp_node, octomap_node])

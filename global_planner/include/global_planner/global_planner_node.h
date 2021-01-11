@@ -24,7 +24,6 @@
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/create_timer_ros.h>
 #include <tf2_ros/buffer.h>
 #include <tf2/convert.h>
@@ -92,8 +91,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;  
   std::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster_;
-  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_transform_broadcaster_;
-
+  
   nav_msgs::msg::Path actual_path_;
   geometry_msgs::msg::Point start_pos_;
   geometry_msgs::msg::PoseStamped current_goal_;

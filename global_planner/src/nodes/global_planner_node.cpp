@@ -49,7 +49,6 @@ GlobalPlannerNode::GlobalPlannerNode()
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", 10);
 
   transform_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
-  static_transform_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
   actual_path_.header.frame_id = frame_id_;
 
@@ -217,19 +216,6 @@ void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::S
   tfmsg.child_frame_id = "local_origin_odom";
   tfmsg.transform.rotation = quat_geomsg;
   transform_broadcaster_->sendTransform(tfmsg);
-
-
-  geometry_msgs::msg::TransformStamped tfmsg_static;
-  tfmsg_static.header.stamp = rclcpp::Clock().now();
-  tfmsg_static.header.frame_id = "local_origin_odom";
-  tfmsg_static.child_frame_id = "camera_frame";
-  tf2::Quaternion quat_for_static_tf2;
-  // q_NED.setEuler(-roll-3.141592, -pitch, yaw);
-  quat_for_static_tf2.setRPY(-1.57, 0.0, 1.57);
-  geometry_msgs::msg::Quaternion quat_for_static_geomsg;
-  tf2::convert(quat_for_static_tf2, quat_for_static_geomsg);
-  tfmsg_static.transform.rotation = quat_for_static_geomsg;
-  static_transform_broadcaster_->sendTransform(tfmsg_static);
 }
 
 // Sets the current position and checks if the current goal has been reached
