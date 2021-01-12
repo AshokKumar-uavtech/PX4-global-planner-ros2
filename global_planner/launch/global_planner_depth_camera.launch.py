@@ -34,7 +34,7 @@ def generate_launch_description():
                  output='screen',
                  parameters=[gp_params])
 
-    octomap_params = {'resolution': 0.10,
+    octomap_params = {'resolution': 1.0,
               'frame_id': 'base_frame',
               'base_frame_id': 'base_footprint',
               'height_map': True,
@@ -52,7 +52,7 @@ def generate_launch_description():
               'sensor_model/miss': 0.45,
               'sensor_model/min': 0.01,
               'sensor_model/max': 0.99,
-              'occupancy_min_z': 0.5,
+              'occupancy_min_z': 1.0,
               'color/r': 0.0,
               'color/g': 0.0,
               'color/b': 1.0,

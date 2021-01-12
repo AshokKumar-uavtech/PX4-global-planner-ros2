@@ -186,7 +186,7 @@ double GlobalPlanner::getRisk(const Cell& cell) {
   }
   double risk = getSingleCellRisk(cell);
   int radius = static_cast<int>(std::ceil(robot_radius_ / octree_resolution_));
-  // printf("cell (%.2lf %.2lf %.2lf)  radius : %d\n", cell.xPos(), cell.yPos(), cell.zPos(), radius);
+  // printf("cell (%.2lf %.2lf %.2lf)  robot_radius_ : %d\n", cell.xPos(), cell.yPos(), cell.zPos(), robot_radius_);
   int risk_cell_count = 1;
   for (const Cell& neighbor : cell.getFlowNeighbors(radius)) {
     // printf("neighbor (%.2lf %.2lf %.2lf)  risk : %.3lf\n", neighbor.xPos(), neighbor.yPos(), neighbor.zPos(), getSingleCellRisk(neighbor));

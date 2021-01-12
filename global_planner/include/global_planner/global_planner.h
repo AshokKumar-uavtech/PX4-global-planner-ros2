@@ -148,7 +148,7 @@ class GlobalPlanner {
 
  private:
   double robot_radius_;
-  double octree_resolution_ = 0.1;
+  double octree_resolution_ = 1.0;
 };
 
 }  // namespace global_planner
