@@ -26,9 +26,8 @@ find_package(tf2_sensor_msgs REQUIRED)
 find_package(avoidance REQUIRED)
 find_package(octomap REQUIRED)
 find_package(octomap_msgs REQUIRED)
+find_package(geographic_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-#find_package(gazebo_msgs REQUIRED)
-#find_package(gazebo_ros REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -95,7 +94,6 @@ ament_target_dependencies(global_planner_node
   tf2_ros
   tf2_sensor_msgs
   PCL)
-  #gazebo_ros)
 
 rosidl_target_interfaces(global_planner_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 

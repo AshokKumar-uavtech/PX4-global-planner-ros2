@@ -25,8 +25,10 @@ GlobalPlannerNode::GlobalPlannerNode()
   rclcpp::QoS qos = rclcpp::SystemDefaultsQoS();
   octomap_full_sub_ = this->create_subscription<octomap_msgs::msg::Octomap>(
     "/octomap_full", qos, std::bind(&GlobalPlannerNode::octomapFullCallback, this, _1));
-  position_sub_ = this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
-    "/agent1/vehicle_local_position", qos, std::bind(&GlobalPlannerNode::positionCallback, this, _1));
+  local_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
+    "/agent1/vehicle_local_position", qos, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
+  global_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
+    "/agent1/vehicle_global_position", qos, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
   attitude_sub_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
     "agent1/vehicle_attitude", qos, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
   clicked_point_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
@@ -43,6 +45,7 @@ GlobalPlannerNode::GlobalPlannerNode()
   explored_cells_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/explored_cells", 10);
   // mavros_waypoint_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/setpoint_position/local", 10);
   mavros_obstacle_free_path_pub_ = this->create_publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>("/trajectory/generated", 10);  
+  vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>("/agent1/vehicle_command", 10);  
   current_waypoint_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_setpoint", 10);
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", 10);
 
@@ -78,9 +81,9 @@ void GlobalPlannerNode::readParams() {
   this->declare_parameter("frame_id", "/base_frame");
   
   this->get_parameter("frame_id", frame_id_);
-  this->get_parameter_or("start_pos_x", start_pos_.x, 0.5);
-  this->get_parameter_or("start_pos_y", start_pos_.y, 0.5);
-  this->get_parameter_or("start_pos_z", start_pos_.z, 3.0);
+  this->get_parameter_or("start_pos_x", start_pos_.x, 0.0);
+  this->get_parameter_or("start_pos_y", start_pos_.y, 0.0);
+  this->get_parameter_or("start_pos_z", start_pos_.z, 2.0);
 
   this->get_parameter("pointcloud_topics", camera_topics);
   camera_topics.push_back("/camera/points");
@@ -91,6 +94,11 @@ void GlobalPlannerNode::readParams() {
   this->get_parameter_or("robot_radius", robot_radius, 0.5);
   global_planner_.setFrame(frame_id_);
   global_planner_.setRobotRadius(robot_radius);
+
+  // (47.3977508, 8.5456073, 488.10101318359375)
+  ref_point_.latitude = 47.3977508;
+  ref_point_.longitude = 8.5456073;
+  ref_point_.altitude = 488.10101318359375;
 }
 
 void GlobalPlannerNode::initializeCameraSubscribers(std::vector<std::string>& camera_topics) {
@@ -126,16 +134,16 @@ void GlobalPlannerNode::popNextGoal() {
 // Plans a new path and publishes it
 void GlobalPlannerNode::planPath() {
   std::clock_t start_time = std::clock();
-  if (global_planner_.octree_) {
-    RCLCPP_INFO(this->get_logger(), "OctoMap memory usage: %2.3f MB", global_planner_.octree_->memoryUsage() / 1000000.0);
-  }
+  // if (global_planner_.octree_) {
+  //   RCLCPP_INFO(this->get_logger(), "OctoMap memory usage: %2.3f MB", global_planner_.octree_->memoryUsage() / 1000000.0);
+  // }
 
   bool found_path = global_planner_.getGlobalPath();
 
   if (!found_path) {
     // TODO: popNextGoal(), instead of checking if goal_is_blocked in
-    // positionCallback?
-    RCLCPP_INFO(this->get_logger(), "Failed to find a path");
+    // localPositionCallback?
+    // RCLCPP_INFO(this->get_logger(), "Failed to find a path");
   } else if (global_planner_.overestimate_factor_ > 1.05) {
     // The path is not good enough, set an intermediate goal on the path
     setIntermediateGoal();
@@ -175,7 +183,7 @@ void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::S
 }
 
 // Sets the current position and checks if the current goal has been reached
-void GlobalPlannerNode::positionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
+void GlobalPlannerNode::localPositionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
   geometry_msgs::msg::TransformStamped tfmsg;
   tfmsg.header.stamp = rclcpp::Clock().now();
   tfmsg.header.frame_id = "base_frame";
@@ -204,8 +212,6 @@ void GlobalPlannerNode::positionCallback(const px4_msgs::msg::VehicleLocalPositi
 
   // Check if a new goal is needed
   if (num_pos_msg_++ % 100 == 0) {
-    // Keep track of and publish the actual travel trajectory
-    // RCLCPP_INFO(this->get_logger(), "Travelled path extended");
     last_pos_.header.frame_id = frame_id_;
     actual_path_.poses.push_back(last_pos_);
     actual_path_pub_->publish(actual_path_);
@@ -232,6 +238,19 @@ void GlobalPlannerNode::positionCallback(const px4_msgs::msg::VehicleLocalPositi
   }
 }
 
+void GlobalPlannerNode::globalPositionCallback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg) {
+  geographic_msgs::msg::GeoPoint cur_point;
+  cur_point.latitude = msg->lat;
+  cur_point.longitude = msg->lon;
+  cur_point.altitude = msg->alt;
+
+  // geometry_msgs::msg::Point local_pos = LLH2NED(ref_point_, cur_point);
+  // printf("Global Position : %.3lf %.3lf %.3lf\n", msg->lat,msg->lon,msg->alt);
+  // printf("Local Position : %.3lf %.3lf %.3lf\n", local_pos.x, local_pos.y, local_pos.z);
+  // geographic_msgs::msg::GeoPoint gl_pos = NED2LLH(ref_point_, local_pos);
+  // printf(">> Global Position : %.3lf %.3lf %.3lf\n", gl_pos.latitude,gl_pos.longitude,gl_pos.altitude);
+}
+
 void GlobalPlannerNode::clickedPointCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
   printPointInfo(msg->point.x, msg->point.y, msg->point.z);
 
@@ -244,7 +263,7 @@ void GlobalPlannerNode::clickedPointCallback(const geometry_msgs::msg::PointStam
 
 void GlobalPlannerNode::moveBaseSimpleCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   printf("########### moveBaseSimpleCallback. %lf %lf %lf\n", msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-  setNewGoal(GoalCell(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z));
+  setNewGoal(GoalCell(msg->pose.position.x, msg->pose.position.y, 5.0));
 }
 
 // void GlobalPlannerNode::fcuInputGoalCallback(const mavros_msgs::msg::Trajectory& msg) {
@@ -396,21 +415,35 @@ void GlobalPlannerNode::publishSetpoint() {
   auto setpoint = current_goal_;  // The intermediate position sent to Mavros
   setpoint.pose.position.x = last_pos_.pose.position.x + vec.getX();
   setpoint.pose.position.y = last_pos_.pose.position.y + vec.getY();
-  setpoint.pose.position.z = last_pos_.pose.position.z + vec.getZ();
+  setpoint.pose.position.z = -(last_pos_.pose.position.z + vec.getZ());
 
   // Publish setpoint for vizualization
-  current_waypoint_publisher_->publish(setpoint);
+  // current_waypoint_publisher_->publish(setpoint);
+  // printf("### publishSetpoint. to x : %3.lf, y : %.3lf, z : %.3lf\n", setpoint.pose.position.x, setpoint.pose.position.y, setpoint.pose.position.z);
+  geographic_msgs::msg::GeoPoint setpoint_geopoint = NED2LLH(ref_point_, setpoint.pose.position);
+  auto reposition_cmd = px4_msgs::msg::VehicleCommand();
+  reposition_cmd.target_system = 1;
+  reposition_cmd.command = 192; // MAV_CMD_DO_REPOSITION
+  reposition_cmd.param1 = -1.0;
+  reposition_cmd.param2 = 1.0;
+  reposition_cmd.param3 = 0.0;
+  reposition_cmd.param4 = 0;
+  reposition_cmd.param5 = setpoint_geopoint.latitude;
+  reposition_cmd.param6 = setpoint_geopoint.longitude;
+  reposition_cmd.param7 = setpoint_geopoint.altitude;
+  reposition_cmd.from_external = true;
+  vehicle_command_pub_->publish(reposition_cmd);
 
   // Publish setpoint to Mavros
   // mavros_waypoint_publisher_->publish(setpoint);
-  px4_msgs::msg::VehicleTrajectoryWaypoint obst_free_path;
-  geometry_msgs::msg::Twist velocity_setpoint{};
-  velocity_setpoint.linear.x = NAN;
-  velocity_setpoint.linear.y = NAN;
-  velocity_setpoint.linear.z = NAN;
+  // px4_msgs::msg::VehicleTrajectoryWaypoint obst_free_path;
+  // geometry_msgs::msg::Twist velocity_setpoint{};
+  // velocity_setpoint.linear.x = NAN;
+  // velocity_setpoint.linear.y = NAN;
+  // velocity_setpoint.linear.z = NAN;
 
-  avoidance::transformToTrajectory(obst_free_path, setpoint, velocity_setpoint);
-  mavros_obstacle_free_path_pub_->publish(obst_free_path);
+  // avoidance::transformToTrajectory(obst_free_path, setpoint, velocity_setpoint);
+  // mavros_obstacle_free_path_pub_->publish(obst_free_path);
 }
 
 bool GlobalPlannerNode::isCloseToGoal() { 

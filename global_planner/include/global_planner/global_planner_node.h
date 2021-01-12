@@ -10,12 +10,15 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_msgs/msg/vehicle_global_position.hpp>
 #include <px4_msgs/msg/vehicle_attitude.hpp>
+#include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_trajectory_waypoint.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geographic_msgs/msg/geo_point.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <pcl_conversions/pcl_conversions.h>
@@ -66,7 +69,8 @@ class GlobalPlannerNode  : public rclcpp::Node {
   // Subscribers
   // ros::Subscriber octomap_sub_;
   rclcpp::Subscription<octomap_msgs::msg::Octomap>::SharedPtr octomap_full_sub_;
-  rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr position_sub_;
+  rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_position_sub_;
+  rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_position_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr attitude_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr clicked_point_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr move_base_simple_sub_;
@@ -79,8 +83,10 @@ class GlobalPlannerNode  : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr global_goal_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr global_temp_goal_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>::SharedPtr mavros_obstacle_free_path_pub_;
+  rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr vehicle_command_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_waypoint_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
+
 
   rclcpp::Time start_time_;
   rclcpp::Time last_wp_time_;
@@ -114,6 +120,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   bool position_received_;
   std::string frame_id_;
   std::string camera_frame_id_;
+  geographic_msgs::msg::GeoPoint ref_point_;
 
   double clicked_goal_alt_;
   double clicked_goal_radius_;
@@ -137,7 +144,8 @@ class GlobalPlannerNode  : public rclcpp::Node {
   void setIntermediateGoal();
   bool isCloseToGoal();
   void setCurrentPath(const std::vector<geometry_msgs::msg::PoseStamped>& poses);
-  void positionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
+  void localPositionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
+  void globalPositionCallback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg);
   void clickedPointCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg);
   void moveBaseSimpleCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void octomapFullCallback(const octomap_msgs::msg::Octomap::SharedPtr msg);

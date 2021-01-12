@@ -184,12 +184,17 @@ double GlobalPlanner::getRisk(const Cell& cell) {
   if (risk_cache_.find(cell) != risk_cache_.end()) {
     return risk_cache_[cell];
   }
-
   double risk = getSingleCellRisk(cell);
   int radius = static_cast<int>(std::ceil(robot_radius_ / octree_resolution_));
+  // printf("cell (%.2lf %.2lf %.2lf)  radius : %d\n", cell.xPos(), cell.yPos(), cell.zPos(), radius);
+  int risk_cell_count = 1;
   for (const Cell& neighbor : cell.getFlowNeighbors(radius)) {
+    // printf("neighbor (%.2lf %.2lf %.2lf)  risk : %.3lf\n", neighbor.xPos(), neighbor.yPos(), neighbor.zPos(), getSingleCellRisk(neighbor));
+    risk_cell_count++;
     risk += neighbor_risk_flow_ * getSingleCellRisk(neighbor);
   }
+  // printf("-------------------------------------------------------------------------\n");
+  risk = risk / risk_cell_count;    // get averaged risk
 
   risk_cache_[cell] = risk;
   return risk;
@@ -493,11 +498,13 @@ bool GlobalPlanner::getGlobalPath() {
   Cell s = Cell(curr_pos_);
   Cell t = Cell(goal_pos_);
   current_cell_blocked_ = isOccupied(s);
-
+  // printf("getGlobalPath!! from (%.3lf %.3lf %.3lf) -> (%.3lf %.3lf %.3lf) // current_cell_blocked_ : %d\n", curr_pos_.x, curr_pos_.y, curr_pos_.z,
+      // goal_pos_.xPos(), goal_pos_.yPos(), goal_pos_.zPos(), current_cell_blocked_);
   if (goal_must_be_free_ && getRisk(t) > max_cell_risk_) {
     // If goal is occupied, no path is published
     // ROS_INFO("Goal position is occupied");
     goal_is_blocked_ = true;
+    // printf("goal_is_blocked!! getRisk(t) : %lf, max_cell_risk_ : %lf\n", getRisk(t), max_cell_risk_);
     return false;
   } else if (current_cell_blocked_) {
     // If current position is occupied the way back is published

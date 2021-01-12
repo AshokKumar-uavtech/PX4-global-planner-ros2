@@ -73,7 +73,7 @@ class GlobalPlanner {
   // Dynamic reconfigure parameters
   int min_altitude_ = 1;
   int max_altitude_ = 10;
-  double max_cell_risk_ = 0.2;
+  double max_cell_risk_ = 0.5;
   double smooth_factor_ = 10.0;
   double vert_to_hor_cost_ = 1.0;  // The cost of changing between vertical and
                                    // horizontal motion (TODO: use it)
@@ -148,7 +148,7 @@ class GlobalPlanner {
 
  private:
   double robot_radius_;
-  double octree_resolution_;
+  double octree_resolution_ = 0.1;
 };
 
 }  // namespace global_planner
