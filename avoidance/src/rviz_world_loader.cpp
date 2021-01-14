@@ -9,9 +9,6 @@ WorldVisualizer::WorldVisualizer()
     : Node("world_visualizer"),
       world_path_(this->declare_parameter("world_path", ""))
 {
-  // pose_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-  //     "agent1/vehicle_odometry", 1, std::bind(&WorldVisualizer::positionCallback, this, _1));
-
   world_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/world", 1);
   drone_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("/drone", 1);
   loop_timer_ = this->create_wall_timer(2s, std::bind(&WorldVisualizer::loopCallback, this));
@@ -143,7 +140,7 @@ int WorldVisualizer::visualizeRVIZWorld(const std::string& world_path) {
 
 void WorldVisualizer::visualizeDrone(){
   // ros2 run tf2_ros static_transform_publisher 0 0 0 1.57 0.0 -1.57 local_origin_odom camera_frame
-  tf_buffer_->waitForTransform("base_frame", "local_origin_odom", rclcpp::Clock().now(), std::chrono::milliseconds(1000),
+  tf_buffer_->waitForTransform("base_frame", "local_origin_odom", rclcpp::Clock().now(), std::chrono::milliseconds(500),
     std::bind(&WorldVisualizer::tf2Callback, this, _1));
 }
 

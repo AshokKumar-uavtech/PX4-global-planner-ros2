@@ -104,8 +104,7 @@ class GlobalPlanner {
 
   void calculateAccumulatedHeightPrior();
 
-  void setPose(const geometry_msgs::msg::PoseStamped::SharedPtr new_pose, const double yaw);
-  // void setPose(const px4_msgs::msg::VehicleLocalPosition::SharedPtr new_pose);
+  void setPose(const geometry_msgs::msg::PoseStamped new_pose, const double yaw);
   void setGoal(const GoalCell& goal);
   void setPath(const std::vector<Cell>& path);
   void setFrame(std::string frame_id);

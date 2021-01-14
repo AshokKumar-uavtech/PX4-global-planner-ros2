@@ -31,6 +31,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2/convert.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -82,7 +83,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr explored_cells_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr global_goal_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr global_temp_goal_pub_;
-  rclcpp::Publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>::SharedPtr mavros_obstacle_free_path_pub_;
+  // rclcpp::Publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>::SharedPtr mavros_obstacle_free_path_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr vehicle_command_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_waypoint_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
@@ -103,6 +104,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   geometry_msgs::msg::PoseStamped current_goal_;
   geometry_msgs::msg::PoseStamped last_goal_;
   geometry_msgs::msg::PoseStamped last_pos_;
+  px4_msgs::msg::VehicleLocalPosition local_pos_;
   sensor_msgs::msg::PointCloud2 pointcloud2_;
   
   std::vector<geometry_msgs::msg::PoseStamped> last_clicked_points;
@@ -150,9 +152,8 @@ class GlobalPlannerNode  : public rclcpp::Node {
   void moveBaseSimpleCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void octomapFullCallback(const octomap_msgs::msg::Octomap::SharedPtr msg);
   void depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-  void tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf);
+  void tf2PointCloudCallback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf);
   void attitudeCallback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg);
-  // void fcuInputGoalCallback(const mavros_msgs::Trajectory& msg);
   void cmdLoopCallback();
   void plannerLoopCallback();
   void publishGoal(const GoalCell& goal);

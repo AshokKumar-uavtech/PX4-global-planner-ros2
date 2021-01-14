@@ -22,7 +22,9 @@ find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_kdl REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(avoidance REQUIRED)
 find_package(octomap REQUIRED)
 find_package(octomap_msgs REQUIRED)
@@ -56,6 +58,7 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
   ${tf2_INCLUDE_DIRS}
   ${tf2_sensor_msgs_INCLUDE_DIRS}
+  ${tf2_geometry_msgs_INCLUDE_DIRS}
   src/library
   src/nodes)
 
@@ -92,7 +95,9 @@ ament_target_dependencies(global_planner_node
   visualization_msgs
   tf2
   tf2_ros
+  tf2_kdl
   tf2_sensor_msgs
+  tf2_geometry_msgs
   PCL)
 
 rosidl_target_interfaces(global_planner_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
@@ -122,3 +127,4 @@ add_library(avoidance SHARED ${GLOBAL_PLANNER_CPP_FILES})
 ament_export_libraries(avoidance)
 
 ament_package()
+

@@ -43,8 +43,7 @@ GlobalPlannerNode::GlobalPlannerNode()
   global_goal_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/global_goal", 10);
   global_temp_goal_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/global_temp_goal", 10);
   explored_cells_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/explored_cells", 10);
-  // mavros_waypoint_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/setpoint_position/local", 10);
-  mavros_obstacle_free_path_pub_ = this->create_publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>("/trajectory/generated", 10);  
+  // mavros_obstacle_free_path_pub_ = this->create_publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>("/trajectory/generated", 10);  
   vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>("/agent1/vehicle_command", 10);  
   current_waypoint_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_setpoint", 10);
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", 10);
@@ -61,7 +60,7 @@ GlobalPlannerNode::GlobalPlannerNode()
   current_goal_.pose.orientation = avoidance::createQuaternionMsgFromYaw(start_yaw_);
   last_goal_ = current_goal_;
 
-  speed_ = 1.0;
+  speed_ = 2.0;
 
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
@@ -83,7 +82,7 @@ void GlobalPlannerNode::readParams() {
   this->get_parameter("frame_id", frame_id_);
   this->get_parameter_or("start_pos_x", start_pos_.x, 0.0);
   this->get_parameter_or("start_pos_y", start_pos_.y, 0.0);
-  this->get_parameter_or("start_pos_z", start_pos_.z, 2.0);
+  this->get_parameter_or("start_pos_z", start_pos_.z, 3.0);
 
   this->get_parameter("pointcloud_topics", camera_topics);
   camera_topics.push_back("/camera/points");
@@ -164,13 +163,11 @@ void GlobalPlannerNode::setIntermediateGoal() {
 
 void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg) {
   tf2::Quaternion q( msg->q[0], msg->q[1], msg->q[2], msg->q[3] );
+  // tf2::Quaternion q( -msg->q[1], -msg->q[0], -msg->q[2], msg->q[3] );
   double yaw, pitch, roll;
   tf2::getEulerYPR(q, yaw, pitch, roll);
   tf2::Quaternion q_NED;
-  // roll = yaw
-  // pitch = -pitch
-  // yaw = -(180+roll)
-  q_NED.setRPY(yaw, -pitch, -roll-3.141592);
+  q_NED.setRPY(yaw+3.14, -pitch, -roll-3.141592);
   geometry_msgs::msg::Quaternion quat_geomsg;
   tf2::convert(q_NED, quat_geomsg);
 
@@ -186,29 +183,31 @@ void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::S
 void GlobalPlannerNode::localPositionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
   geometry_msgs::msg::TransformStamped tfmsg;
   tfmsg.header.stamp = rclcpp::Clock().now();
-  tfmsg.header.frame_id = "base_frame";
+  tfmsg.header.frame_id = "base_frame_ned";
   tfmsg.child_frame_id = "local_origin";
   tfmsg.transform.translation.x = msg->x;
   tfmsg.transform.translation.y = msg->y;
-  tfmsg.transform.translation.z = -(msg->z);
+  tfmsg.transform.translation.z = msg->z;
   transform_broadcaster_->sendTransform(tfmsg);
 
-  auto pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
-  pose->pose.position.x = msg->x;
-  pose->pose.position.y = msg->y;
-  pose->pose.position.z = -(msg->z);
-  pose->pose.orientation = avoidance::createQuaternionMsgFromYaw(msg->yaw);
+  geometry_msgs::msg::PoseStamped pose;
+  pose.pose.position.x = msg->x;
+  pose.pose.position.y = msg->y;
+  pose.pose.position.z = msg->z;
+  pose.pose.orientation = avoidance::createQuaternionMsgFromYaw(msg->yaw);
+
+  geometry_msgs::msg::PoseStamped transformed_pose = avoidance::transfromNEDtoENU(pose);
 
   // Update position
-  last_pos_ = *pose;
-  global_planner_.setPose(pose, msg->yaw);
+  last_pos_ = transformed_pose;
+  global_planner_.setPose(transformed_pose, msg->yaw);
 
-  // Update velocity
-  auto vel = std::make_shared<geometry_msgs::msg::Vector3>();
-  vel->x = msg->vx;
-  vel->y = msg->vy;
-  vel->z = -(msg->vz);
-  global_planner_.curr_vel_ = *vel;
+  // Update velocity (considering NED to ENU transformation)
+  geometry_msgs::msg::Vector3 vel;
+  vel.x = msg->vy;
+  vel.y = msg->vx;
+  vel.z = -(msg->vz);
+  global_planner_.curr_vel_ = vel;
 
   // Check if a new goal is needed
   if (num_pos_msg_++ % 100 == 0) {
@@ -262,17 +261,8 @@ void GlobalPlannerNode::clickedPointCallback(const geometry_msgs::msg::PointStam
 }
 
 void GlobalPlannerNode::moveBaseSimpleCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  printf("########### moveBaseSimpleCallback. %lf %lf %lf\n", msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-  setNewGoal(GoalCell(msg->pose.position.x, msg->pose.position.y, 5.0));
+  setNewGoal(GoalCell(msg->pose.position.x, msg->pose.position.y, 3.0));
 }
-
-// void GlobalPlannerNode::fcuInputGoalCallback(const mavros_msgs::msg::Trajectory& msg) {
-//   const GoalCell new_goal = GoalCell(msg.point_2.position.x, msg.point_2.position.y, msg.point_2.position.z, 1.0);
-//   if (msg.point_valid[1] == true && ((std::fabs(global_planner_.goal_pos_.xPos() - new_goal.xPos()) > 0.001) ||
-//                                      (std::fabs(global_planner_.goal_pos_.yPos() - new_goal.yPos()) > 0.001))) {
-//     setNewGoal(new_goal);
-//   }
-// }
 
 // // Check if the current path is blocked
 void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::SharedPtr msg) {
@@ -293,11 +283,11 @@ void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::Sh
 // Go through obstacle points and store them
 void GlobalPlannerNode::depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   pointcloud2_ = *msg;
-  tf_buffer_->waitForTransform("base_frame", "camera_frame", rclcpp::Clock().now(), std::chrono::milliseconds(1000),
-    std::bind(&GlobalPlannerNode::tf2Callback, this, _1));
+  tf_buffer_->waitForTransform("base_frame", "camera_frame", rclcpp::Clock().now(), std::chrono::milliseconds(500),
+    std::bind(&GlobalPlannerNode::tf2PointCloudCallback, this, _1));
 }
 
-void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
+void GlobalPlannerNode::tf2PointCloudCallback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
   try {
     geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
@@ -308,7 +298,7 @@ void GlobalPlannerNode::tf2Callback(const std::shared_future<geometry_msgs::msg:
 
     // Store the obstacle points
     for (const auto& p : cloud) {
-      if (!std::isnan(p.x) && p.z >= 1.0) {
+      if (!std::isnan(p.x)) {
         // TODO: Not all points end up here
         Cell occupied_cell(p.x, p.y, p.z);
         global_planner_.occupied_.insert(occupied_cell);
@@ -407,6 +397,9 @@ void GlobalPlannerNode::printPointInfo(double x, double y, double z) {
 void GlobalPlannerNode::publishSetpoint() {
   // Vector pointing from current position to the current goal
   tf2::Vector3 vec = toTfVector3(subtractPoints(current_goal_.pose.position, last_pos_.pose.position));
+  // printf("Last pos (%.2lf, %.2lf, %.2lf) => current_goal_ (%.2lf, %.2lf, %.2lf)\n",
+  //         last_pos_.pose.position.x, last_pos_.pose.position.y, last_pos_.pose.position.z,
+  //         current_goal_.pose.position.x, current_goal_.pose.position.y, current_goal_.pose.position.z);
   // If we are less than 1.0 away, then we should stop at the goal
   double new_len = vec.length() < 1.0 ? vec.length() : speed_;
   vec.normalize();
@@ -415,39 +408,32 @@ void GlobalPlannerNode::publishSetpoint() {
   auto setpoint = current_goal_;  // The intermediate position sent to Mavros
   setpoint.pose.position.x = last_pos_.pose.position.x + vec.getX();
   setpoint.pose.position.y = last_pos_.pose.position.y + vec.getY();
-  setpoint.pose.position.z = -(last_pos_.pose.position.z + vec.getZ());
+  setpoint.pose.position.z = last_pos_.pose.position.z + vec.getZ();
 
+  geometry_msgs::msg::PoseStamped NED_setpoint = avoidance::transfromENUtoNED(setpoint);
   // Publish setpoint for vizualization
   // current_waypoint_publisher_->publish(setpoint);
-  // printf("### publishSetpoint. to x : %3.lf, y : %.3lf, z : %.3lf\n", setpoint.pose.position.x, setpoint.pose.position.y, setpoint.pose.position.z);
-  geographic_msgs::msg::GeoPoint setpoint_geopoint = NED2LLH(ref_point_, setpoint.pose.position);
+  geographic_msgs::msg::GeoPoint setpoint_geopoint = NED2LLH(ref_point_, NED_setpoint.pose.position);
   auto reposition_cmd = px4_msgs::msg::VehicleCommand();
   reposition_cmd.target_system = 1;
   reposition_cmd.command = 192; // MAV_CMD_DO_REPOSITION
   reposition_cmd.param1 = -1.0;
   reposition_cmd.param2 = 1.0;
   reposition_cmd.param3 = 0.0;
-  reposition_cmd.param4 = 0;
+  // TODO : Calc yaw with direction vector
+  reposition_cmd.param4 = 0;  // yaw
   reposition_cmd.param5 = setpoint_geopoint.latitude;
   reposition_cmd.param6 = setpoint_geopoint.longitude;
   reposition_cmd.param7 = setpoint_geopoint.altitude;
   reposition_cmd.from_external = true;
   vehicle_command_pub_->publish(reposition_cmd);
 
-  // Publish setpoint to Mavros
-  // mavros_waypoint_publisher_->publish(setpoint);
-  // px4_msgs::msg::VehicleTrajectoryWaypoint obst_free_path;
-  // geometry_msgs::msg::Twist velocity_setpoint{};
-  // velocity_setpoint.linear.x = NAN;
-  // velocity_setpoint.linear.y = NAN;
-  // velocity_setpoint.linear.z = NAN;
-
   // avoidance::transformToTrajectory(obst_free_path, setpoint, velocity_setpoint);
   // mavros_obstacle_free_path_pub_->publish(obst_free_path);
 }
 
 bool GlobalPlannerNode::isCloseToGoal() { 
-  return distance(current_goal_, last_pos_) < 1.5;
+  return distance(current_goal_, last_pos_) < speed_;
 }
 
 }  // namespace global_planner

@@ -27,8 +27,8 @@ void GlobalPlanner::calculateAccumulatedHeightPrior() {
 }
 
 // Updates the current pose and keeps track of the path back
-void GlobalPlanner::setPose(const geometry_msgs::msg::PoseStamped::SharedPtr new_pose, const double yaw) {
-  curr_pos_ = new_pose->pose.position;
+void GlobalPlanner::setPose(const geometry_msgs::msg::PoseStamped new_pose, const double yaw) {
+  curr_pos_ = new_pose.pose.position;
   // curr_yaw_ = tf2::getYaw(new_pose->pose.orientation);
   curr_yaw_ = yaw;  // get Yaw directly from px4_msgs::msg::VehicleLocalPosition.
   

@@ -17,8 +17,18 @@ def generate_launch_description():
                 package='tf2_ros',
                 executable='static_transform_publisher',
                 name='tf_depth_camera',
-                arguments=['0', '0', '0', '-1.57', '0',
-                           '-1.57', 'local_origin_odom', 'camera_frame'],
+                arguments=['0.9', '1.5', '0',
+                           '-1.57', '0', '-1.57',
+                           'local_origin_odom', 'camera_frame'],
+                output='screen')
+
+    tf2_static_pub_node2 = Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='tf_frd_ned',
+                arguments=['0', '0', '0',
+                           '1.57', '0', '3.14',
+                          'base_frame', 'base_frame_ned'],
                 output='screen')
 
     rviz2_node = Node(
@@ -27,14 +37,15 @@ def generate_launch_description():
                 name='rviz2',
                 arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
 
-    gp_params = {'frame_id': 'base_frame'}
+    gp_params = {'frame_id': 'base_frame',
+                 'world_path': '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/avoidance/sim/worlds/simple_obstacle.yaml'}
     
     gp_node = Node(package='global_planner',
                  executable='global_planner_node',
                  output='screen',
                  parameters=[gp_params])
 
-    octomap_params = {'resolution': 1.0,
+    octomap_params = {'resolution': 0.1,
               'frame_id': 'base_frame',
               'base_frame_id': 'base_footprint',
               'height_map': True,
@@ -52,7 +63,7 @@ def generate_launch_description():
               'sensor_model/miss': 0.45,
               'sensor_model/min': 0.01,
               'sensor_model/max': 0.99,
-              'occupancy_min_z': 1.0,
+              'occupancy_min_z': 0.3,
               'color/r': 0.0,
               'color/g': 0.0,
               'color/b': 1.0,
@@ -68,4 +79,4 @@ def generate_launch_description():
                  executable='octomap_server',
                  output='log',
                  parameters=[octomap_params])
-    return LaunchDescription([tf2_static_pub_node, octomap_node, gp_node, rviz2_node])
+    return LaunchDescription([tf2_static_pub_node, tf2_static_pub_node2, octomap_node, gp_node, rviz2_node])

@@ -303,6 +303,18 @@ float getPitchFromQuaternion(const Eigen::Quaternionf q);
 geometry_msgs::msg::Quaternion createQuaternionMsgFromYaw(double yaw);
 
 /**
+* @brief     Tranform NED PoseStamped msg to ENU PoseStamped msg
+* @returns   PoseStamped msg (in geometry_msgs)
+**/
+geometry_msgs::msg::PoseStamped transfromNEDtoENU(geometry_msgs::msg::PoseStamped pose);
+
+/**
+* @brief     Tranform ENU PoseStamped msg to NED PoseStamped msg
+* @returns   PoseStamped msg (in geometry_msgs)
+**/
+geometry_msgs::msg::PoseStamped transfromENUtoNED(geometry_msgs::msg::PoseStamped pose);
+
+/**
 * @brief     wrappes the input angle in to plus minus PI space
 * @param[in] angle to be wrapped  [rad]
 * @returns   wrapped angle [rad]
