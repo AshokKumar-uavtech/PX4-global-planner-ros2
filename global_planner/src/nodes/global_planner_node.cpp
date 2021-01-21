@@ -22,19 +22,26 @@ GlobalPlannerNode::GlobalPlannerNode()
   readParams();
 
   // Subscribers
-  rclcpp::QoS qos = rclcpp::SystemDefaultsQoS();
+  rclcpp::QoS qos_default = rclcpp::SystemDefaultsQoS();
+  rclcpp::QoS qos_best_effort = rclcpp::QoS(5).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+
   octomap_full_sub_ = this->create_subscription<octomap_msgs::msg::Octomap>(
-    "/octomap_full", qos, std::bind(&GlobalPlannerNode::octomapFullCallback, this, _1));
+    "/octomap_full", qos_best_effort, std::bind(&GlobalPlannerNode::octomapFullCallback, this, _1));
+  
+  // .durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
   local_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
-    "/agent1/vehicle_local_position", qos, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
+    "/agent1/vehicle_local_position", qos_best_effort, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
+
   global_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
-    "/agent1/vehicle_global_position", qos, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
+    "/agent1/vehicle_global_position", qos_best_effort, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
+  
   attitude_sub_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
-    "agent1/vehicle_attitude", qos, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
+    "agent1/vehicle_attitude", qos_best_effort, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
+  
   clicked_point_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
-    "/clicked_point", qos, std::bind(&GlobalPlannerNode::clickedPointCallback, this, _1));
+    "/clicked_point", qos_default, std::bind(&GlobalPlannerNode::clickedPointCallback, this, _1));
   move_base_simple_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-    "/goal_pose", qos, std::bind(&GlobalPlannerNode::moveBaseSimpleCallback, this, _1));
+    "/goal_pose", qos_default, std::bind(&GlobalPlannerNode::moveBaseSimpleCallback, this, _1));
 
   // Publishers
   global_temp_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/global_temp_path", 10);
@@ -102,10 +109,11 @@ void GlobalPlannerNode::readParams() {
 
 void GlobalPlannerNode::initializeCameraSubscribers(std::vector<std::string>& camera_topics) {
   cameras_.resize(camera_topics.size());
-
+  rclcpp::QoS qos_best_effort = rclcpp::QoS(5).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+    
   for (size_t i = 0; i < camera_topics.size(); i++) {
     cameras_[i].pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      camera_topics[i], 1, std::bind(&GlobalPlannerNode::depthCameraCallback, this, _1));
+      camera_topics[i], qos_best_effort, std::bind(&GlobalPlannerNode::depthCameraCallback, this, _1));
   }
 }
 
@@ -282,33 +290,36 @@ void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::Sh
 
 // Go through obstacle points and store them
 void GlobalPlannerNode::depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-  pointcloud2_ = *msg;
-  tf_buffer_->waitForTransform("base_frame", "camera_frame", rclcpp::Clock().now(), std::chrono::milliseconds(500),
-    std::bind(&GlobalPlannerNode::tf2PointCloudCallback, this, _1));
+  msg->header.stamp = rclcpp::Clock().now();
+  pointcloud_pub_->publish(*msg);
+  // pointcloud2_ = *msg;
+  // tf_buffer_->waitForTransform("base_frame", "camera_frame", rclcpp::Clock().now(), std::chrono::milliseconds(500),
+  //   std::bind(&GlobalPlannerNode::tf2PointCloudCallback, this, _1));
 }
 
 void GlobalPlannerNode::tf2PointCloudCallback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
-  try {
-    geometry_msgs::msg::TransformStamped transformStamped = tf.get();
+  // try {
+  //   geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
-    sensor_msgs::msg::PointCloud2 transformed_msg;
-    tf2::doTransform(pointcloud2_, transformed_msg, transformStamped);
-    pcl::PointCloud<pcl::PointXYZ> cloud;  // Easier to loop through pcl::PointCloud
-    pcl::fromROSMsg(transformed_msg, cloud);
+  //   sensor_msgs::msg::PointCloud2 transformed_msg;
+  //   tf2::doTransform(pointcloud2_, transformed_msg, transformStamped);
+  //   pcl::PointCloud<pcl::PointXYZ> cloud;  // Easier to loop through pcl::PointCloud
+  //   pcl::fromROSMsg(transformed_msg, cloud);
 
-    // Store the obstacle points
-    for (const auto& p : cloud) {
-      if (!std::isnan(p.x)) {
-        // TODO: Not all points end up here
-        Cell occupied_cell(p.x, p.y, p.z);
-        global_planner_.occupied_.insert(occupied_cell);
-      }
-    }
+  //   // Store the obstacle points
+  //   for (const auto& p : cloud) {
+  //     if (!std::isnan(p.x)) {
+  //       // TODO: Not all points end up here
+  //       // printf("Cell : %.2lf, %.2lf, %.2lf\n", p.x, p.y, p.z);
+  //       Cell occupied_cell(p.x, p.y, p.z);
+  //       global_planner_.occupied_.insert(occupied_cell);
+  //     }
+  //   }
     
-    pointcloud_pub_->publish(transformed_msg);
-  } catch(tf2::TimeoutException const& ex) {
-    RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-  }
+  //   pointcloud_pub_->publish(transformed_msg);
+  // } catch(tf2::TimeoutException const& ex) {
+  //   RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+  // }
 }
 
 void GlobalPlannerNode::setCurrentPath(const std::vector<geometry_msgs::msg::PoseStamped>& poses) {
@@ -397,9 +408,7 @@ void GlobalPlannerNode::printPointInfo(double x, double y, double z) {
 void GlobalPlannerNode::publishSetpoint() {
   // Vector pointing from current position to the current goal
   tf2::Vector3 vec = toTfVector3(subtractPoints(current_goal_.pose.position, last_pos_.pose.position));
-  // printf("Last pos (%.2lf, %.2lf, %.2lf) => current_goal_ (%.2lf, %.2lf, %.2lf)\n",
-  //         last_pos_.pose.position.x, last_pos_.pose.position.y, last_pos_.pose.position.z,
-  //         current_goal_.pose.position.x, current_goal_.pose.position.y, current_goal_.pose.position.z);
+
   // If we are less than 1.0 away, then we should stop at the goal
   double new_len = vec.length() < 1.0 ? vec.length() : speed_;
   vec.normalize();
@@ -420,8 +429,9 @@ void GlobalPlannerNode::publishSetpoint() {
   reposition_cmd.param1 = -1.0;
   reposition_cmd.param2 = 1.0;
   reposition_cmd.param3 = 0.0;
-  // TODO : Calc yaw with direction vector
-  reposition_cmd.param4 = 0;  // yaw
+
+  double yaw = atan2(vec.getX(), vec.getY());
+  reposition_cmd.param4 = yaw;  // yaw
   reposition_cmd.param5 = setpoint_geopoint.latitude;
   reposition_cmd.param6 = setpoint_geopoint.longitude;
   reposition_cmd.param7 = setpoint_geopoint.altitude;
