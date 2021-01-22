@@ -88,5 +88,4 @@ def generate_launch_description():
                  output='log',
                  # remappings=octomap_remap,
                  parameters=[octomap_params])
-    # return LaunchDescription([tf2_static_pub_node, tf2_static_pub_node2, gp_node, rviz2_node])
     return LaunchDescription([tf2_static_pub_node, tf2_static_pub_node2, octomap_node, gp_node, rviz2_node])

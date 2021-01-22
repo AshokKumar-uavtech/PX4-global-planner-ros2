@@ -10,13 +10,10 @@ GlobalPlannerNode::GlobalPlannerNode()
     {
   RCLCPP_INFO_ONCE(this->get_logger(), "GlobalPlannerNode STARTED!");
  
- // #ifndef DISABLE_SIMULATION
-  world_visualizer_ = std::make_shared<avoidance::WorldVisualizer>();
-  world_visualizer_executor_.add_node(world_visualizer_);
-  world_visualizer_thread = new std::thread([&]() {
-    world_visualizer_executor_.spin();
-  });
-// #endif
+  #ifndef DISABLE_SIMULATION
+    world_visualizer_ = std::make_shared<avoidance::WorldVisualizer>();
+    world_visualizer_executor_.add_node(world_visualizer_);
+  #endif
 
   // Read Ros parameters
   readParams();
@@ -348,6 +345,10 @@ void GlobalPlannerNode::cmdLoopCallback() {
 
   avoidance_node_.checkFailsafe(since_last_cloud, since_start, hover_);
   publishSetpoint();
+
+  #ifndef DISABLE_SIMULATION
+    world_visualizer_executor_.spin_some();
+  #endif
 }
 
 void GlobalPlannerNode::plannerLoopCallback() {
@@ -366,8 +367,6 @@ void GlobalPlannerNode::plannerLoopCallback() {
   }
 
   publishPath();
-
-  // world_visualizer_.spin_some();
 }
 
 // Publish the position of goal

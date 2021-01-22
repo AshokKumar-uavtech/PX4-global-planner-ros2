@@ -31,16 +31,6 @@ void WorldVisualizer::loopCallback() {
   }
 }
 
-// void WorldVisualizer::positionCallback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) const {
-  // printf("WorldVisualizer::positionCallback!!\n");
-  // visualize drone in RVIZ
-  // if (!world_path_.empty()) {
-    // if (visualizeDrone(*msg)) {
-    //   RCLCPP_WARN(this->get_logger(), "Failed to visualize drone in RViz");
-    // }
-  // }
-// }
-
 int WorldVisualizer::resolveUri(std::string& uri) const {
   // Iterate through all locations in GAZEBO_MODEL_PATH
   char* gazebo_model_path = getenv("GAZEBO_MODEL_PATH");
@@ -139,7 +129,6 @@ int WorldVisualizer::visualizeRVIZWorld(const std::string& world_path) {
 }
 
 void WorldVisualizer::visualizeDrone(){
-  // ros2 run tf2_ros static_transform_publisher 0 0 0 1.57 0.0 -1.57 local_origin_odom camera_frame
   tf_buffer_->waitForTransform("base_frame", "local_origin_odom", rclcpp::Clock().now(), std::chrono::milliseconds(500),
     std::bind(&WorldVisualizer::tf2Callback, this, _1));
 }

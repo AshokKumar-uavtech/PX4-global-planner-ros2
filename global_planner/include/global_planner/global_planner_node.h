@@ -131,13 +131,11 @@ class GlobalPlannerNode  : public rclcpp::Node {
   double simplify_margin_;
 
   avoidance::AvoidanceNode avoidance_node_;
-// #ifndef DISABLE_SIMULATION
-  // std::unique_ptr<avoidance::WorldVisualizer> world_visualizer_;
+#ifndef DISABLE_SIMULATION
   avoidance::WorldVisualizer::SharedPtr world_visualizer_;
   rclcpp::executors::MultiThreadedExecutor world_visualizer_executor_;
   rclcpp::TimerBase::SharedPtr world_visualizer_timer_;
-  std::thread* world_visualizer_thread;
-// #endif
+#endif
   void readParams();
   void initializeCameraSubscribers(std::vector<std::string>& camera_topics);
   void setNewGoal(const GoalCell& goal);
