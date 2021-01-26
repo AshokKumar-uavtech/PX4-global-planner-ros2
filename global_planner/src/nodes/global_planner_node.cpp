@@ -29,8 +29,10 @@ GlobalPlannerNode::GlobalPlannerNode()
   local_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
     "/agent1/vehicle_local_position", qos_best_effort, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
 
-  global_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
-    "/agent1/vehicle_global_position", qos_best_effort, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
+  // global_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
+  //   "/agent1/vehicle_global_position", qos_best_effort, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
+  monitoring_sub_ = this->create_subscription<px4_msgs::msg::Monitoring>(
+    "/agent1/monitoring", qos_best_effort, std::bind(&GlobalPlannerNode::monitoringCallback, this, _1));
   
   attitude_sub_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
     "agent1/vehicle_attitude", qos_best_effort, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
@@ -64,8 +66,6 @@ GlobalPlannerNode::GlobalPlannerNode()
   current_goal_.pose.orientation = avoidance::createQuaternionMsgFromYaw(start_yaw_);
   last_goal_ = current_goal_;
 
-  speed_ = 2.0;
-
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
     this->get_node_base_interface(),
@@ -81,12 +81,34 @@ GlobalPlannerNode::~GlobalPlannerNode() {}
 void GlobalPlannerNode::readParams() {
   std::vector<std::string> camera_topics;
 
-  this->declare_parameter("frame_id", "/base_frame");
-  
-  this->get_parameter("frame_id", frame_id_);
-  this->get_parameter_or("start_pos_x", start_pos_.x, 0.0);
-  this->get_parameter_or("start_pos_y", start_pos_.y, 0.0);
-  this->get_parameter_or("start_pos_z", start_pos_.z, 3.0);
+  frame_id_ = this->declare_parameter("frame_id", "/base_frame");
+  start_pos_.x = this->declare_parameter("start_pos_x", 0.0);
+  start_pos_.y = this->declare_parameter("start_pos_y", 0.0);
+  start_pos_.z = this->declare_parameter("start_pos_z", 3.0);
+  global_planner_.min_altitude_ = this->declare_parameter("min_altitude", global_planner_.min_altitude_);
+  global_planner_.max_altitude_ = this->declare_parameter("max_altitude", global_planner_.max_altitude_);
+  global_planner_.max_cell_risk_ = this->declare_parameter("max_cell_risk", global_planner_.max_cell_risk_);
+  global_planner_.smooth_factor_ = this->declare_parameter("smooth_factor", global_planner_.smooth_factor_);
+  global_planner_.vert_to_hor_cost_ = this->declare_parameter("vert_to_hor_cost", global_planner_.vert_to_hor_cost_);
+  global_planner_.risk_factor_ = this->declare_parameter("risk_factor", global_planner_.risk_factor_);
+  global_planner_.neighbor_risk_flow_ = this->declare_parameter("neighbor_risk_flow", global_planner_.neighbor_risk_flow_);
+  global_planner_.explore_penalty_ = this->declare_parameter("explore_penalty", global_planner_.explore_penalty_);
+  global_planner_.up_cost_ = this->declare_parameter("up_cost", global_planner_.up_cost_);
+  global_planner_.down_cost_ = this->declare_parameter("down_cost", global_planner_.down_cost_);
+  global_planner_.search_time_ = this->declare_parameter("search_time", global_planner_.search_time_);
+  global_planner_.min_overestimate_factor_ = this->declare_parameter("min_overestimate_factor", global_planner_.min_overestimate_factor_);
+  global_planner_.max_overestimate_factor_ = this->declare_parameter("max_overestimate_factor", global_planner_.max_overestimate_factor_);
+  global_planner_.risk_threshold_risk_based_speedup_ = this->declare_parameter("risk_threshold_risk_based_speedup", global_planner_.risk_threshold_risk_based_speedup_);
+  global_planner_.default_speed_ = this->declare_parameter("default_speed", global_planner_.default_speed_);
+  global_planner_.max_speed_ = this->declare_parameter("max_speed", global_planner_.max_speed_);
+  global_planner_.max_iterations_ = this->declare_parameter("max_iterations", global_planner_.max_iterations_);
+  global_planner_.goal_is_blocked_ = this->declare_parameter("goal_is_blocked", global_planner_.goal_is_blocked_);
+  global_planner_.current_cell_blocked_ = this->declare_parameter("current_cell_blocked", global_planner_.current_cell_blocked_);
+  global_planner_.goal_must_be_free_ = this->declare_parameter("goal_must_be_free", global_planner_.goal_must_be_free_);
+  global_planner_.use_current_yaw_ = this->declare_parameter("use_current_yaw", global_planner_.use_current_yaw_);
+  global_planner_.use_risk_heuristics_ = this->declare_parameter("use_risk_heuristics", global_planner_.use_risk_heuristics_);
+  global_planner_.use_speedup_heuristics_ = this->declare_parameter("use_speedup_heuristics", global_planner_.use_speedup_heuristics_);
+  global_planner_.use_risk_based_speedup_ = this->declare_parameter("use_risk_based_speedup", global_planner_.use_risk_based_speedup_);
 
   this->get_parameter("pointcloud_topics", camera_topics);
   camera_topics.push_back("/camera/points");
@@ -98,10 +120,15 @@ void GlobalPlannerNode::readParams() {
   global_planner_.setFrame(frame_id_);
   global_planner_.setRobotRadius(robot_radius);
 
-  // (47.3977508, 8.5456073, 488.10101318359375)
-  ref_point_.latitude = 47.3977508;
-  ref_point_.longitude = 8.5456073;
-  ref_point_.altitude = 488.10101318359375;
+  // Position for PX4 sitl default location
+  // ref_point_.latitude = 47.3977508;
+  // ref_point_.longitude = 8.5456073;
+  // ref_point_.altitude = 488.10101318359375;
+
+  // Position for KARI test location
+  ref_point_.latitude = 36.37415;
+  ref_point_.longitude = 127.35275;
+  ref_point_.altitude = 85.4;
 }
 
 void GlobalPlannerNode::initializeCameraSubscribers(std::vector<std::string>& camera_topics) {
@@ -186,26 +213,60 @@ void GlobalPlannerNode::attitudeCallback(const px4_msgs::msg::VehicleAttitude::S
 
 // Sets the current position and checks if the current goal has been reached
 void GlobalPlannerNode::localPositionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
-  geometry_msgs::msg::TransformStamped tfmsg;
-  tfmsg.header.stamp = rclcpp::Clock().now();
-  tfmsg.header.frame_id = "base_frame_ned";
-  tfmsg.child_frame_id = "local_origin";
-  tfmsg.transform.translation.x = msg->x;
-  tfmsg.transform.translation.y = msg->y;
-  tfmsg.transform.translation.z = msg->z;
-  transform_broadcaster_->sendTransform(tfmsg);
+  // geometry_msgs::msg::TransformStamped tfmsg;
+  // tfmsg.header.stamp = rclcpp::Clock().now();
+  // tfmsg.header.frame_id = "base_frame_ned";
+  // tfmsg.child_frame_id = "local_origin";
+  // tfmsg.transform.translation.x = msg->x;
+  // tfmsg.transform.translation.y = msg->y;
+  // tfmsg.transform.translation.z = msg->z;
+  // transform_broadcaster_->sendTransform(tfmsg);
 
-  geometry_msgs::msg::PoseStamped pose;
-  pose.pose.position.x = msg->x;
-  pose.pose.position.y = msg->y;
-  pose.pose.position.z = msg->z;
-  pose.pose.orientation = avoidance::createQuaternionMsgFromYaw(msg->yaw);
+  // geometry_msgs::msg::PoseStamped pose;
+  // pose.pose.position.x = msg->x;
+  // pose.pose.position.y = msg->y;
+  // pose.pose.position.z = msg->z;
+  // pose.pose.orientation = avoidance::createQuaternionMsgFromYaw(msg->yaw);
 
-  geometry_msgs::msg::PoseStamped transformed_pose = avoidance::transfromNEDtoENU(pose);
+  // geometry_msgs::msg::PoseStamped transformed_pose = avoidance::transfromNEDtoENU(pose);
 
-  // Update position
-  last_pos_ = transformed_pose;
-  global_planner_.setPose(transformed_pose, msg->yaw);
+  // // Update position
+  // last_pos_ = transformed_pose;
+  // global_planner_.setPose(transformed_pose, msg->yaw);
+
+  // // Update velocity (considering NED to ENU transformation)
+  // geometry_msgs::msg::Vector3 vel;
+  // vel.x = msg->vy;
+  // vel.y = msg->vx;
+  // vel.z = -(msg->vz);
+  // global_planner_.curr_vel_ = vel;
+
+  // // Check if a new goal is needed
+  // if (num_pos_msg_++ % 100 == 0) {
+  //   last_pos_.header.frame_id = frame_id_;
+  //   actual_path_.poses.push_back(last_pos_);
+  //   actual_path_pub_->publish(actual_path_);
+  // }
+
+  // position_received_ = true;
+
+  // // Check if we are close enough to current goal to get the next part of the
+  // // path
+  // if (path_.size() > 0 && isCloseToGoal()) {
+  //   double yaw1 = tf2::getYaw(current_goal_.pose.orientation);
+  //   double yaw2 = tf2::getYaw(last_pos_.pose.orientation);
+  //   double yaw_diff = std::abs(yaw2 - yaw1);
+  //   // Transform yaw_diff to [0, 2*pi]
+  //   yaw_diff -= std::floor(yaw_diff / (2 * M_PI)) * (2 * M_PI);
+  //   double max_yaw_diff = M_PI / 1.0;
+  //   if (yaw_diff < max_yaw_diff || yaw_diff > 2 * M_PI - max_yaw_diff) {
+  //     // If we are facing the right direction, then pop the first point of the
+  //     // path
+  //     last_goal_ = current_goal_;
+  //     current_goal_ = path_[0];
+  //     path_.erase(path_.begin());
+  //   }
+  // }
 
   // Update velocity (considering NED to ENU transformation)
   geometry_msgs::msg::Vector3 vel;
@@ -213,14 +274,42 @@ void GlobalPlannerNode::localPositionCallback(const px4_msgs::msg::VehicleLocalP
   vel.y = msg->vx;
   vel.z = -(msg->vz);
   global_planner_.curr_vel_ = vel;
+}
+
+void GlobalPlannerNode::monitoringCallback(const px4_msgs::msg::Monitoring::SharedPtr msg) {
+  geographic_msgs::msg::GeoPoint cur_point;
+  cur_point.latitude = msg->lat;
+  cur_point.longitude = msg->lon;
+  cur_point.altitude = msg->alt;
+
+  geometry_msgs::msg::Point local_pos = LLH2NED(ref_point_, cur_point);
+
+  geometry_msgs::msg::TransformStamped tfmsg;
+  tfmsg.header.stamp = rclcpp::Clock().now();
+  tfmsg.header.frame_id = "base_frame_ned";
+  tfmsg.child_frame_id = "local_origin";
+  tfmsg.transform.translation.x = local_pos.x;
+  tfmsg.transform.translation.y = local_pos.y;
+  tfmsg.transform.translation.z = local_pos.z;
+  transform_broadcaster_->sendTransform(tfmsg);
+
+  geometry_msgs::msg::PoseStamped pose;
+  pose.pose.position.x = local_pos.x;
+  pose.pose.position.y = local_pos.y;
+  pose.pose.position.z = local_pos.z;
+  pose.pose.orientation = avoidance::createQuaternionMsgFromYaw(msg->head * 3.14 / 180);
+
+  geometry_msgs::msg::PoseStamped transformed_pose = avoidance::transfromNEDtoENU(pose);
+
+  // Update position
+  last_pos_ = transformed_pose;
+  global_planner_.setPose(transformed_pose, msg->head * 3.14 / 180);
 
   // Check if a new goal is needed
-  if (num_pos_msg_++ % 100 == 0) {
-    last_pos_.header.frame_id = frame_id_;
-    actual_path_.poses.push_back(last_pos_);
-    actual_path_pub_->publish(actual_path_);
-  }
-
+  last_pos_.header.frame_id = frame_id_;
+  actual_path_.poses.push_back(last_pos_);
+  actual_path_pub_->publish(actual_path_);
+  
   position_received_ = true;
 
   // Check if we are close enough to current goal to get the next part of the
@@ -242,18 +331,66 @@ void GlobalPlannerNode::localPositionCallback(const px4_msgs::msg::VehicleLocalP
   }
 }
 
-void GlobalPlannerNode::globalPositionCallback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg) {
-  geographic_msgs::msg::GeoPoint cur_point;
-  cur_point.latitude = msg->lat;
-  cur_point.longitude = msg->lon;
-  cur_point.altitude = msg->alt;
+// void GlobalPlannerNode::globalPositionCallback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg) {
+//   geographic_msgs::msg::GeoPoint cur_point;
+//   cur_point.latitude = msg->lat;
+//   cur_point.longitude = msg->lon;
+//   cur_point.altitude = msg->alt;
 
-  // geometry_msgs::msg::Point local_pos = LLH2NED(ref_point_, cur_point);
-  // printf("Global Position : %.3lf %.3lf %.3lf\n", msg->lat,msg->lon,msg->alt);
-  // printf("Local Position : %.3lf %.3lf %.3lf\n", local_pos.x, local_pos.y, local_pos.z);
-  // geographic_msgs::msg::GeoPoint gl_pos = NED2LLH(ref_point_, local_pos);
-  // printf(">> Global Position : %.3lf %.3lf %.3lf\n", gl_pos.latitude,gl_pos.longitude,gl_pos.altitude);
-}
+//   geometry_msgs::msg::Point local_pos = LLH2NED(ref_point_, cur_point);
+//   // printf("Global Position : %.3lf %.3lf %.3lf\n", msg->lat,msg->lon,msg->alt);
+//   // printf("Local Position : %.3lf %.3lf %.3lf\n", local_pos.x, local_pos.y, local_pos.z);
+//   // geographic_msgs::msg::GeoPoint gl_pos = NED2LLH(ref_point_, local_pos);
+//   // printf(">> Global Position : %.3lf %.3lf %.3lf\n", gl_pos.latitude,gl_pos.longitude,gl_pos.altitude);
+
+//   geometry_msgs::msg::TransformStamped tfmsg;
+//   tfmsg.header.stamp = rclcpp::Clock().now();
+//   tfmsg.header.frame_id = "base_frame_ned";
+//   tfmsg.child_frame_id = "local_origin";
+//   tfmsg.transform.translation.x = local_pos.x;
+//   tfmsg.transform.translation.y = local_pos.y;
+//   tfmsg.transform.translation.z = local_pos.z;
+//   transform_broadcaster_->sendTransform(tfmsg);
+
+//   geometry_msgs::msg::PoseStamped pose;
+//   pose.pose.position.x = local_pos.x;
+//   pose.pose.position.y = local_pos.y;
+//   pose.pose.position.z = local_pos.z;
+//   pose.pose.orientation = avoidance::createQuaternionMsgFromYaw(0);
+
+//   geometry_msgs::msg::PoseStamped transformed_pose = avoidance::transfromNEDtoENU(pose);
+
+//   // Update position
+//   last_pos_ = transformed_pose;
+//   global_planner_.setPose(transformed_pose, 0);
+
+//   // Check if a new goal is needed
+//   if (num_pos_msg_++ % 10 == 0) {
+//     last_pos_.header.frame_id = frame_id_;
+//     actual_path_.poses.push_back(last_pos_);
+//     actual_path_pub_->publish(actual_path_);
+//   }
+
+//   position_received_ = true;
+
+//   // Check if we are close enough to current goal to get the next part of the
+//   // path
+//   if (path_.size() > 0 && isCloseToGoal()) {
+//     double yaw1 = tf2::getYaw(current_goal_.pose.orientation);
+//     double yaw2 = tf2::getYaw(last_pos_.pose.orientation);
+//     double yaw_diff = std::abs(yaw2 - yaw1);
+//     // Transform yaw_diff to [0, 2*pi]
+//     yaw_diff -= std::floor(yaw_diff / (2 * M_PI)) * (2 * M_PI);
+//     double max_yaw_diff = M_PI / 1.0;
+//     if (yaw_diff < max_yaw_diff || yaw_diff > 2 * M_PI - max_yaw_diff) {
+//       // If we are facing the right direction, then pop the first point of the
+//       // path
+//       last_goal_ = current_goal_;
+//       current_goal_ = path_[0];
+//       path_.erase(path_.begin());
+//     }
+//   }
+// }
 
 void GlobalPlannerNode::clickedPointCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
   printPointInfo(msg->point.x, msg->point.y, msg->point.z);
@@ -289,34 +426,6 @@ void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::Sh
 void GlobalPlannerNode::depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   msg->header.stamp = rclcpp::Clock().now();
   pointcloud_pub_->publish(*msg);
-  // pointcloud2_ = *msg;
-  // tf_buffer_->waitForTransform("base_frame", "camera_frame", rclcpp::Clock().now(), std::chrono::milliseconds(500),
-  //   std::bind(&GlobalPlannerNode::tf2PointCloudCallback, this, _1));
-}
-
-void GlobalPlannerNode::tf2PointCloudCallback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
-  // try {
-  //   geometry_msgs::msg::TransformStamped transformStamped = tf.get();
-
-  //   sensor_msgs::msg::PointCloud2 transformed_msg;
-  //   tf2::doTransform(pointcloud2_, transformed_msg, transformStamped);
-  //   pcl::PointCloud<pcl::PointXYZ> cloud;  // Easier to loop through pcl::PointCloud
-  //   pcl::fromROSMsg(transformed_msg, cloud);
-
-  //   // Store the obstacle points
-  //   for (const auto& p : cloud) {
-  //     if (!std::isnan(p.x)) {
-  //       // TODO: Not all points end up here
-  //       // printf("Cell : %.2lf, %.2lf, %.2lf\n", p.x, p.y, p.z);
-  //       Cell occupied_cell(p.x, p.y, p.z);
-  //       global_planner_.occupied_.insert(occupied_cell);
-  //     }
-  //   }
-    
-  //   pointcloud_pub_->publish(transformed_msg);
-  // } catch(tf2::TimeoutException const& ex) {
-  //   RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-  // }
 }
 
 void GlobalPlannerNode::setCurrentPath(const std::vector<geometry_msgs::msg::PoseStamped>& poses) {
@@ -409,7 +518,7 @@ void GlobalPlannerNode::publishSetpoint() {
   tf2::Vector3 vec = toTfVector3(subtractPoints(current_goal_.pose.position, last_pos_.pose.position));
 
   // If we are less than 1.0 away, then we should stop at the goal
-  double new_len = vec.length() < 1.0 ? vec.length() : speed_;
+  double new_len = vec.length() < 1.0 ? vec.length() : global_planner_.default_speed_;
   vec.normalize();
   vec *= new_len;
 
@@ -442,7 +551,7 @@ void GlobalPlannerNode::publishSetpoint() {
 }
 
 bool GlobalPlannerNode::isCloseToGoal() { 
-  return distance(current_goal_, last_pos_) < speed_;
+  return distance(current_goal_, last_pos_) < global_planner_.default_speed_;
 }
 
 }  // namespace global_planner

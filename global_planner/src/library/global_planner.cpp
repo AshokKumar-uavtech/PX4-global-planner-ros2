@@ -517,7 +517,7 @@ bool GlobalPlanner::getGlobalPath() {
     std::vector<Cell> path;
     if (!findPath(path)) {
       double goal_risk = getRisk(t);
-      // ROS_INFO("  Failed to find a path, risk of t: %3.2f", goal_risk);
+      // printf("  Failed to find a path, risk of t: %3.2f", goal_risk);
       goal_is_blocked_ = true;
       return false;
     }

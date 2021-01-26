@@ -14,6 +14,7 @@
 #include <px4_msgs/msg/vehicle_attitude.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_trajectory_waypoint.hpp>
+#include <px4_msgs/msg/monitoring.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -72,6 +73,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   rclcpp::Subscription<octomap_msgs::msg::Octomap>::SharedPtr octomap_full_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_position_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr global_position_sub_;
+  rclcpp::Subscription<px4_msgs::msg::Monitoring>::SharedPtr monitoring_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr attitude_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr clicked_point_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr move_base_simple_sub_;
@@ -146,11 +148,11 @@ class GlobalPlannerNode  : public rclcpp::Node {
   void setCurrentPath(const std::vector<geometry_msgs::msg::PoseStamped>& poses);
   void localPositionCallback(const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg);
   void globalPositionCallback(const px4_msgs::msg::VehicleGlobalPosition::SharedPtr msg);
+  void monitoringCallback(const px4_msgs::msg::Monitoring::SharedPtr msg);
   void clickedPointCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg);
   void moveBaseSimpleCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void octomapFullCallback(const octomap_msgs::msg::Octomap::SharedPtr msg);
   void depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-  void tf2PointCloudCallback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf);
   void attitudeCallback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg);
   void cmdLoopCallback();
   void plannerLoopCallback();
