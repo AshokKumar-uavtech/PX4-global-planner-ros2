@@ -98,6 +98,7 @@ class GlobalPlanner {
   bool use_risk_based_speedup_ = true;
   std::string default_node_type_ = "SpeedNode";
   std::string frame_id_ = "world";
+  std::string position_mode_ = "local_position";
 
   GlobalPlanner();
   ~GlobalPlanner();

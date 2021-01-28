@@ -41,6 +41,7 @@ def generate_launch_description():
                 arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
 
     gp_params = {'frame_id': 'base_frame',
+                 'position_mode': 'local_position',
                  'world_path': '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/avoidance/sim/worlds/simple_obstacle.yaml',
                  'start_pos_x': 0.0,
                  'start_pos_y': 0.0,
