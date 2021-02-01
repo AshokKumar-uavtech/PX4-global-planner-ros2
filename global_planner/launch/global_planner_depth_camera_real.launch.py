@@ -72,7 +72,7 @@ def generate_launch_description():
 
     realsense2_node = LaunchDescription(declare_configurable_parameters(configurable_parameters_realsense) + [
         # Realsense
-        launch_ros.actions.Node(
+        Node(
             package='realsense2_camera',
             namespace=LaunchConfiguration("camera_name"),
             name=LaunchConfiguration("camera_name"),
