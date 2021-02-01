@@ -106,8 +106,8 @@ void GlobalPlannerNode::readParams() {
   global_planner_.use_risk_based_speedup_ = this->declare_parameter("use_risk_based_speedup", global_planner_.use_risk_based_speedup_);
   global_planner_.position_mode_ = this->declare_parameter("position_mode", global_planner_.position_mode_);
 
-  this->get_parameter("pointcloud_topics", camera_topics);
-  camera_topics.push_back("/camera/points");
+  camera_topics = this->declare_parameter("pointcloud_topics", camera_topics);
+  // camera_topics.push_back("/camera/points");
 
   initializeCameraSubscribers(camera_topics);
   global_planner_.goal_pos_ = GoalCell(start_pos_.x, start_pos_.y, start_pos_.z);

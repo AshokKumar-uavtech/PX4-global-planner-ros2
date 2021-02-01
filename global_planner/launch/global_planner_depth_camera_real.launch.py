@@ -13,7 +13,7 @@ from launch.substitutions import ThisLaunchFileDir
 
 def generate_launch_description():
 
-    camera_frame_name = 'camera_frame'
+    camera_frame_name = 'camera_depth_optical_frame'  # Realsense camera frame name
 
     tf2_static_pub_node = Node(
                 package='tf2_ros',
@@ -21,7 +21,7 @@ def generate_launch_description():
                 name='tf_depth_camera',
                 arguments=['0', '0', '0',
                            '-1.57', '0', '-1.57',
-                           'local_origin_odom', 'camera_frame'],
+                           'local_origin_odom', camera_frame_name],
                 output='screen')
 
     tf2_static_pub_node2 = Node(
@@ -40,9 +40,9 @@ def generate_launch_description():
                 arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
 
     gp_params = {'frame_id': 'base_frame',
-                 'position_mode': 'monitoring',
+                 'position_mode': 'local_position',
                  'world_path': '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/avoidance/sim/worlds/simple_obstacle.yaml',
-                 'pointcloud_topics': ['/camera/points'],
+                 'pointcloud_topics': ['/camera/depth/color/points'],
                  'start_pos_x': 0.0,
                  'start_pos_y': 0.0,
                  'start_pos_z': 3.0,
