@@ -69,14 +69,14 @@ def generate_launch_description():
                            {'name': 'topic_odom_in',                'default': '', 'description': 'topic for T265 wheel odometry'},
                           ]
 
-    realsense2_node = LaunchDescription(declare_configurable_parameters(configurable_parameters) + [
+    realsense2_node = LaunchDescription(declare_configurable_parameters(configurable_parameters_realsense) + [
         # Realsense
         launch_ros.actions.Node(
             package='realsense2_camera',
             namespace=LaunchConfiguration("camera_name"),
             name=LaunchConfiguration("camera_name"),
             executable='realsense2_camera_node',
-            parameters = [set_configurable_parameters(configurable_parameters)],
+            parameters = [set_configurable_parameters(configurable_parameters_realsense)],
             output='screen',
             emulate_tty=True,
             )
