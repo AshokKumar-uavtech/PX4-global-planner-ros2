@@ -37,7 +37,7 @@ def generate_launch_description():
                 package='rviz2',
                 executable='rviz2',
                 name='rviz2',
-                arguments=['-d', '/home/user/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
+                arguments=['-d', '/home/karidrone/git/global_planner_ws/src/PX4-global-planner-ros2/global_planner/resources/global_planner.rviz'])
 
     gp_params = {'frame_id': 'base_frame',
                  'agent_number': 14,
@@ -77,7 +77,7 @@ def generate_launch_description():
                  output='screen',
                  parameters=[gp_params])
 
-    octomap_params = {'resolution': 0.5,
+    octomap_params = {'resolution': 1.0,
               'frame_id': 'base_frame',
               'base_frame_id': 'base_footprint',
               'height_map': True,
@@ -87,7 +87,7 @@ def generate_launch_description():
               'filter_speckles': False,
               'compress_map': True,
               'incremental_2D_projection': False,
-              'sensor_model/max_range': 9.0,
+              'sensor_model/max_range': 6.0,
               'sensor_model/hit': 0.9,
               'sensor_model/miss': 0.45,
               'sensor_model/min': 0.01,
@@ -98,7 +98,7 @@ def generate_launch_description():
               'pointcloud_min_x': -100.0,
               'pointcloud_min_y': -100.0,
               'pointcloud_min_z': -100.0,
-              'occupancy_min_z': 1.0,
+              'occupancy_min_z': 0.5,
               'color/r': 0.0,
               'color/g': 0.0,
               'color/b': 1.0,

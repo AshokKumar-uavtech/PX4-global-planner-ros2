@@ -134,7 +134,7 @@ void WorldVisualizer::visualizeDrone(){
 }
 
 void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
-  try {
+/*  try {
     geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
     auto drone = visualization_msgs::msg::Marker();
@@ -167,7 +167,7 @@ void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::T
     drone_pub_->publish(drone);
   } catch(tf2::TimeoutException const& ex) {
     RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-  }
+  }*/
 }
 
 // extraction operators
