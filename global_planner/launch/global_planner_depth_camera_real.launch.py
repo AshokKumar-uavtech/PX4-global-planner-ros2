@@ -10,10 +10,77 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import ThisLaunchFileDir
 
+def declare_configurable_parameters(parameters):
+    return [DeclareLaunchArgument(param['name'], default_value=param['default'], description=param['description']) for param in parameters]
+
+def set_configurable_parameters(parameters):
+    return dict([(param['name'], LaunchConfiguration(param['name'])) for param in parameters])
 
 def generate_launch_description():
 
     camera_frame_name = 'camera_frame'  # Realsense camera frame name
+
+    configurable_parameters_realsense = [{'name': 'camera_name',                  'default': 'camera', 'description': 'camera unique name'},
+                           {'name': 'serial_no',                    'default': '', 'description': 'choose device by serial number'},
+                           {'name': 'usb_port_id',                  'default': '', 'description': 'choose device by usb port id'},
+                           {'name': 'device_type',                  'default': '', 'description': 'choose device by type'},
+                           {'name': 'config_file',                  'default': '', 'description': 'yaml config file'},
+                           {'name': 'enable_pointcloud',            'default': 'true', 'description': 'enable pointcloud'},
+                           {'name': 'unite_imu_method',             'default': '', 'description': '[copy|linear_interpolation]'},
+                           {'name': 'json_file_path',               'default': '', 'description': 'allows advanced configuration'},
+                           {'name': 'output',                       'default': 'screen', 'description': 'pipe node output [screen|log]'},
+                           {'name': 'depth_width',                  'default': '256', 'description': 'depth image width'},
+                           {'name': 'depth_height',                 'default': '144', 'description': 'depth image height'},
+                           {'name': 'enable_depth',                 'default': 'true', 'description': 'enable depth stream'},
+                           {'name': 'color_width',                  'default': '1280', 'description': 'color image width'},
+                           {'name': 'color_height',                 'default': '720', 'description': 'color image height'},
+                           {'name': 'enable_color',                 'default': 'true', 'description': 'enable color stream'},
+                           {'name': 'infra_width',                  'default': '640', 'description': 'infra width'},
+                           {'name': 'infra_height',                 'default': '480', 'description': 'infra width'},
+                           {'name': 'enable_infra1',                'default': 'false', 'description': 'enable infra1 stream'},
+                           {'name': 'enable_infra2',                'default': 'false', 'description': 'enable infra2 stream'},
+                           {'name': 'infra_rgb',                    'default': 'false', 'description': 'enable infra2 stream'},
+                           {'name': 'fisheye_width',                'default': '848', 'description': 'fisheye width'},
+                           {'name': 'fisheye_height',               'default': '800', 'description': 'fisheye width'},
+                           {'name': 'enable_fisheye1',              'default': 'false', 'description': 'enable fisheye1 stream'},
+                           {'name': 'enable_fisheye2',              'default': 'false', 'description': 'enable fisheye2 stream'},
+                           {'name': 'confidence_width',             'default': '640', 'description': 'depth image width'},
+                           {'name': 'confidence_height',            'default': '480', 'description': 'depth image height'},
+                           {'name': 'enable_confidence',            'default': 'true', 'description': 'enable depth stream'},
+                           {'name': 'fisheye_fps',                  'default': '30.', 'description': ''},
+                           {'name': 'depth_fps',                    'default': '90.', 'description': ''},
+                           {'name': 'confidence_fps',               'default': '30.', 'description': ''},
+                           {'name': 'infra_fps',                    'default': '30.', 'description': ''},
+                           {'name': 'color_fps',                    'default': '30.', 'description': ''},
+                           {'name': 'gyro_fps',                     'default': '400.', 'description': ''},
+                           {'name': 'accel_fps',                    'default': '250.', 'description': ''},
+                           {'name': 'enable_gyro',                  'default': 'false', 'description': ''},
+                           {'name': 'enable_accel',                 'default': 'false', 'description': ''},
+                           {'name': 'pointcloud_texture_stream',    'default': 'RS2_STREAM_COLOR', 'description': 'testure stream for pointcloud'},
+                           {'name': 'pointcloud_texture_index',     'default': '0', 'description': 'testure stream index for pointcloud'},
+                           {'name': 'enable_sync',                  'default': 'false', 'description': ''},
+                           {'name': 'align_depth',                  'default': 'false', 'description': ''},
+                           {'name': 'filters',                      'default': '', 'description': ''},
+                           {'name': 'clip_distance',                'default': '-2.', 'description': ''},
+                           {'name': 'linear_accel_cov',             'default': '0.01', 'description': ''},
+                           {'name': 'initial_reset',                'default': 'false', 'description': ''},
+                           {'name': 'allow_no_texture_points',      'default': 'false', 'description': ''},
+                           {'name': 'calib_odom_file',              'default': '', 'description': ''},
+                           {'name': 'topic_odom_in',                'default': '', 'description': 'topic for T265 wheel odometry'},
+                          ]
+
+    realsense2_node = LaunchDescription(declare_configurable_parameters(configurable_parameters) + [
+        # Realsense
+        launch_ros.actions.Node(
+            package='realsense2_camera',
+            namespace=LaunchConfiguration("camera_name"),
+            name=LaunchConfiguration("camera_name"),
+            executable='realsense2_camera_node',
+            parameters = [set_configurable_parameters(configurable_parameters)],
+            output='screen',
+            emulate_tty=True,
+            )
+    ])
 
     tf2_static_pub_node = Node(
                 package='tf2_ros',
@@ -117,4 +184,4 @@ def generate_launch_description():
                  output='log',
                  # remappings=octomap_remap,
                  parameters=[octomap_params])
-    return LaunchDescription([tf2_static_pub_node, tf2_static_pub_node2, octomap_node, gp_node]) #, rviz2_node])
+    return LaunchDescription([realsense2_node, tf2_static_pub_node, tf2_static_pub_node2, octomap_node, gp_node]) #, rviz2_node])
