@@ -151,8 +151,8 @@ void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::T
     // }
     // drone.mesh_use_embedded_materials = true;
     drone.scale.x = 0.3;
-    drone.scale.y = 0.3;
-    drone.scale.z = 0.3;
+    drone.scale.y = 0.1;
+    drone.scale.z = 0.1;
     drone.pose.position.x = transformStamped.transform.translation.x;
     drone.pose.position.y = transformStamped.transform.translation.y;
     drone.pose.position.z = transformStamped.transform.translation.z;
