@@ -3,12 +3,13 @@
 import os.path as osp
 
 from launch import LaunchDescription, logging
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import \
     PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import ThisLaunchFileDir
+from launch.substitutions import LaunchConfiguration, PythonExpression
 
 def declare_configurable_parameters(parameters):
     return [DeclareLaunchArgument(param['name'], default_value=param['default'], description=param['description']) for param in parameters]
