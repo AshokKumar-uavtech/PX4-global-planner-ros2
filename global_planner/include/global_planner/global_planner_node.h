@@ -113,6 +113,7 @@ class GlobalPlannerNode  : public rclcpp::Node {
   std::vector<geometry_msgs::msg::PoseStamped> path_;
   std::vector<cameraData> cameras_;
 
+  int agent_number_ = 1;
   int num_octomap_msg_ = 0;
   int num_pos_msg_ = 0;
   std::chrono::milliseconds gp_cmdloop_dt_;

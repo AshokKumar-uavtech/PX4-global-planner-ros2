@@ -29,6 +29,7 @@ AvoidanceNode::~AvoidanceNode() {}
 void AvoidanceNode::init() {
   setSystemStatus(MAV_STATE::MAV_STATE_BOOT);
 
+  
   avoidance_node_cmd = rclcpp::Node::make_shared("avoidance_node_cmd");
   cmdloop_timer_ = avoidance_node_cmd->create_wall_timer(cmdloop_dt_, [&](){});
   cmdloop_executor_.add_node(avoidance_node_cmd);
@@ -39,9 +40,10 @@ void AvoidanceNode::init() {
   });
 
   avoidance_node_status = rclcpp::Node::make_shared("avoidance_node_status");
+  agent_number_ = avoidance_node_status->declare_parameter("agent_number", agent_number_);
   // This is a passthrough that replaces the usage of Mavlink Heartbeats
   telemetry_status_pub_ =
-        avoidance_node_status->create_publisher<px4_msgs::msg::TelemetryStatus>("agent1/telemetry_status", 1);
+        avoidance_node_status->create_publisher<px4_msgs::msg::TelemetryStatus>("agent" + std::to_string(agent_number_) + "/telemetry_status", 1);
   statusloop_timer_ = avoidance_node_status->create_wall_timer(statusloop_dt_, [&](){ publishSystemStatus(); });
   statusloop_executor_.add_node(avoidance_node_status);
 

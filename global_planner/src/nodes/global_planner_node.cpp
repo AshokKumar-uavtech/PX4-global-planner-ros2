@@ -25,15 +25,15 @@ GlobalPlannerNode::GlobalPlannerNode()
   octomap_full_sub_ = this->create_subscription<octomap_msgs::msg::Octomap>(
     "/octomap_full", qos_best_effort, std::bind(&GlobalPlannerNode::octomapFullCallback, this, _1));
   attitude_sub_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
-    "agent1/vehicle_attitude", qos_best_effort, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
+    "agent" + std::to_string(agent_number_) + "/vehicle_attitude", qos_best_effort, std::bind(&GlobalPlannerNode::attitudeCallback, this, _1));
   clicked_point_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
     "/clicked_point", qos_default, std::bind(&GlobalPlannerNode::clickedPointCallback, this, _1));
   move_base_simple_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
     "/goal_pose", qos_default, std::bind(&GlobalPlannerNode::moveBaseSimpleCallback, this, _1));
   local_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
-    "/agent1/vehicle_local_position", qos_best_effort, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
+    "/agent" + std::to_string(agent_number_) + "/vehicle_local_position", qos_best_effort, std::bind(&GlobalPlannerNode::localPositionCallback, this, _1));
   monitoring_sub_ = this->create_subscription<px4_msgs::msg::Monitoring>(
-    "/agent1/monitoring", qos_best_effort, std::bind(&GlobalPlannerNode::monitoringCallback, this, _1));
+    "/agent" + std::to_string(agent_number_) + "/monitoring", qos_best_effort, std::bind(&GlobalPlannerNode::monitoringCallback, this, _1));
   // global_position_sub_ = this->create_subscription<px4_msgs::msg::VehicleGlobalPosition>(
     // "/agent1/vehicle_global_position", qos_best_effort, std::bind(&GlobalPlannerNode::globalPositionCallback, this, _1));
 
@@ -45,7 +45,7 @@ GlobalPlannerNode::GlobalPlannerNode()
   global_temp_goal_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/global_temp_goal", 10);
   explored_cells_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/explored_cells", 10);
   // mavros_obstacle_free_path_pub_ = this->create_publisher<px4_msgs::msg::VehicleTrajectoryWaypoint>("/trajectory/generated", 10);  
-  vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>("/agent1/vehicle_command", 10);  
+  vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>("/agent" + std::to_string(agent_number_) + "/vehicle_command", 10);  
   current_waypoint_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_setpoint", 10);
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", 10);
 
@@ -76,6 +76,7 @@ GlobalPlannerNode::~GlobalPlannerNode() {}
 void GlobalPlannerNode::readParams() {
   std::vector<std::string> camera_topics;
 
+  agent_number_ = this->declare_parameter("agent_number", agent_number_);
   frame_id_ = this->declare_parameter("frame_id", "/base_frame");
   start_pos_.x = this->declare_parameter("start_pos_x", 0.0);
   start_pos_.y = this->declare_parameter("start_pos_y", 0.0);

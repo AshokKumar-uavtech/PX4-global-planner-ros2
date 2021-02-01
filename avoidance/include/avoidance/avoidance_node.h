@@ -68,6 +68,7 @@ class AvoidanceNode {
   rclcpp::Duration timeout_critical_;
   rclcpp::Duration timeout_startup_;
 
+  int agent_number_ = 1;
   bool position_received_;
   bool should_exit_;
 
