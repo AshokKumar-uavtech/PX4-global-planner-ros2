@@ -426,6 +426,7 @@ void GlobalPlannerNode::octomapFullCallback(const octomap_msgs::msg::Octomap::Sh
 // Go through obstacle points and store them
 void GlobalPlannerNode::depthCameraCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   msg->header.stamp = rclcpp::Clock().now();
+  msg->header.frame_id = "camera_frame";
   pointcloud_pub_->publish(*msg);
 }
 

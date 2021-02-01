@@ -13,7 +13,7 @@ from launch.substitutions import ThisLaunchFileDir
 
 def generate_launch_description():
 
-    camera_frame_name = 'camera_depth_optical_frame'  # Realsense camera frame name
+    camera_frame_name = 'camera_frame'  # Realsense camera frame name
 
     tf2_static_pub_node = Node(
                 package='tf2_ros',
