@@ -134,25 +134,25 @@ void WorldVisualizer::visualizeDrone(){
 }
 
 void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::TransformStamped>& tf) {
-/*  try {
+  try {
     geometry_msgs::msg::TransformStamped transformStamped = tf.get();
 
     auto drone = visualization_msgs::msg::Marker();
     drone.header.frame_id = "base_frame";
     drone.header.stamp = rclcpp::Clock().now();
-    drone.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
-    drone.mesh_resource = "model://matrice_100/meshes/Matrice_100.dae";
-    // drone.mesh_resource = "model://px4vision/meshes/body.dae";
-    if (drone.mesh_resource.find("model://") != std::string::npos) {
-      if (resolveUri(drone.mesh_resource)) {
-        RCLCPP_ERROR(this->get_logger(), "RVIZ world loader could not find drone model");
-        return;
-      }
-    }
-    drone.mesh_use_embedded_materials = true;
-    drone.scale.x = 1.5;
-    drone.scale.y = 1.5;
-    drone.scale.z = 1.5;
+    drone.type = visualization_msgs::msg::Marker::ARROW;
+    // drone.mesh_resource = "model://matrice_100/meshes/Matrice_100.dae";
+    // // drone.mesh_resource = "model://px4vision/meshes/body.dae";
+    // if (drone.mesh_resource.find("model://") != std::string::npos) {
+    //   if (resolveUri(drone.mesh_resource)) {
+    //     RCLCPP_ERROR(this->get_logger(), "RVIZ world loader could not find drone model");
+    //     return;
+    //   }
+    // }
+    // drone.mesh_use_embedded_materials = true;
+    drone.scale.x = 0.3;
+    drone.scale.y = 0.3;
+    drone.scale.z = 0.3;
     drone.pose.position.x = transformStamped.transform.translation.x;
     drone.pose.position.y = transformStamped.transform.translation.y;
     drone.pose.position.z = transformStamped.transform.translation.z;
@@ -160,6 +160,10 @@ void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::T
     drone.pose.orientation.y = transformStamped.transform.rotation.y;
     drone.pose.orientation.z = transformStamped.transform.rotation.z;
     drone.pose.orientation.w = transformStamped.transform.rotation.w;
+    drone.color.r = 0.0f;
+    drone.color.g = 1.0f;
+    drone.color.b = 0.0f;
+    drone.color.a = 1.0;
     drone.id = 0;
     drone.lifetime = rclcpp::Duration(0);
     drone.action = visualization_msgs::msg::Marker::ADD;
@@ -167,7 +171,7 @@ void WorldVisualizer::tf2Callback(const std::shared_future<geometry_msgs::msg::T
     drone_pub_->publish(drone);
   } catch(tf2::TimeoutException const& ex) {
     RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-  }*/
+  }
 }
 
 // extraction operators

@@ -72,7 +72,7 @@ Visualization Manager:
         Value: /actual_path
       Value: true
     - Class: rviz_default_plugins/Marker
-      Enabled: false
+      Enabled: true
       Name: Marker
       Namespaces:
         {}
