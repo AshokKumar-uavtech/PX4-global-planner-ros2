@@ -1,3 +1,5 @@
+look into PR-ROS2-GLOBAL-PLANNER for ros2 global planner obstacle avoidance.
+
 # Obstacle Detection and Avoidance
 [![Release Status](https://img.shields.io/github/v/release/PX4/avoidance)](https://github.com/PX4/avoidance/releases)
 [![Build Status](https://travis-ci.org/PX4/avoidance.svg?branch=master)](https://travis-ci.org/PX4/avoidance)
